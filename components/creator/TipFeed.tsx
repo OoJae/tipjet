@@ -7,7 +7,10 @@ import { ARBITRUM_RPC_URL, ARBITRUM_USDC } from "@/lib/tokens";
 const TRANSFER_ABI = [
   "event Transfer(address indexed from, address indexed to, uint256 value)",
 ];
-const BACKFILL_BLOCKS = 2000;
+// Arbitrum One produces ~4 blocks/second, so 250k blocks ≈ the last ~17 hours.
+// (2000 blocks would be ~8 minutes — an empty-looking feed.)
+const BACKFILL_BLOCKS = 250_000;
+const MIN_RANGE = 10_000; // floor for split-on-error when an RPC caps getLogs ranges
 const POLL_MS = 5000;
 const MAX_TIPS = 50;
 
@@ -47,6 +50,24 @@ export default function TipFeed({ address }: { address: string }) {
     const usdc = new Contract(ARBITRUM_USDC, TRANSFER_ABI, provider);
     const filter = usdc.filters.Transfer(null, address);
 
+    // queryFilter with recursive halving: some public RPCs cap getLogs ranges.
+    const queryRange = async (
+      from: number,
+      to: number,
+    ): Promise<(EventLog | import("ethers").Log)[]> => {
+      try {
+        return await usdc.queryFilter(filter, from, to);
+      } catch (err) {
+        if (to - from <= MIN_RANGE) throw err;
+        const mid = Math.floor((from + to) / 2);
+        const [a, b] = await Promise.all([
+          queryRange(from, mid),
+          queryRange(mid + 1, to),
+        ]);
+        return [...a, ...b];
+      }
+    };
+
     const poll = async () => {
       if (busy || cancelled) return;
       busy = true;
@@ -56,7 +77,7 @@ export default function TipFeed({ address }: { address: string }) {
           ? lastBlock + 1
           : Math.max(latest - BACKFILL_BLOCKS, 0);
         if (fromBlock <= latest) {
-          const logs = await usdc.queryFilter(filter, fromBlock, latest);
+          const logs = await queryRange(fromBlock, latest);
           const fresh: Tip[] = [];
           for (const log of logs) {
             if (!(log instanceof EventLog)) continue;

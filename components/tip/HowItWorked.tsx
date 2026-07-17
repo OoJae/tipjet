@@ -23,7 +23,7 @@ export default function HowItWorked({ name }: { name: string }) {
       {open && (
         <div className="flex flex-col gap-4 px-5 pb-5">
           <p className="text-sm leading-relaxed text-muted">
-            You paid from your one balance. {name} received US dollars (USDC) on
+            You paid from your one balance. {name} received real US dollars on
             Arbitrum — instantly, at the same account they always use. No forms.
             No waiting. That&apos;s TipJet.
           </p>

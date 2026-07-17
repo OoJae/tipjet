@@ -157,8 +157,19 @@ export default function Dashboard() {
     setSendError(null);
     setSendStatus("Preparing…");
     try {
+      // The pipeline logs are technical ("EIP-7702 authorization…") — map them
+      // to friendly copy on screen and keep the raw lines in the console.
+      const friendly = (m: string): string => {
+        console.log("[withdraw]", m);
+        if (m.startsWith("Building")) return "Getting your money ready…";
+        if (m.startsWith("Routing")) return "Finding the fastest route…";
+        if (m.includes("authorization")) return "Confirming it's you…";
+        if (m.startsWith("Signing")) return "Confirming it's you…";
+        if (m.startsWith("Settling")) return "Settling on Arbitrum…";
+        return "Almost there…";
+      };
       await sendUsdcOnArbitrum(ua, dest.trim(), amount.trim(), (m) =>
-        setSendStatus(m),
+        setSendStatus(friendly(m)),
       );
       setSendDone(true);
       setAmount("");

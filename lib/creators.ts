@@ -11,8 +11,21 @@ export function normalizeHandle(raw: string): string {
   return raw.trim().replace(/^@+/, "").toLowerCase();
 }
 
+/** Route names and app words a creator must not claim as a handle. */
+export const RESERVED_HANDLES = new Set([
+  "dashboard",
+  "claim",
+  "dev",
+  "api",
+  "about",
+  "admin",
+  "settings",
+  "help",
+  "tipjet",
+]);
+
 export function isValidHandle(handle: string): boolean {
-  return /^[a-z0-9_]{2,24}$/.test(handle);
+  return /^[a-z0-9_]{2,24}$/.test(handle) && !RESERVED_HANDLES.has(handle);
 }
 
 export async function fetchCreator(handle: string): Promise<Creator | null> {

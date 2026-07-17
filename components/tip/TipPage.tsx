@@ -6,6 +6,7 @@ import type { UniversalAccount } from "@particle-network/universal-account-sdk";
 import { fetchCreator, normalizeHandle, type Creator } from "@/lib/creators";
 import { isLoggedIn, getAddress, logout } from "@/lib/magic";
 import { makeUniversalAccount, getUnifiedBalance } from "@/lib/universalAccount";
+import { watchForSettlement } from "@/lib/settlement";
 import LoginButton from "@/components/tip/LoginButton";
 import BalancePill from "@/components/tip/BalancePill";
 import TipWidget from "@/components/tip/TipWidget";
@@ -13,16 +14,25 @@ import SettledToast from "@/components/tip/SettledToast";
 import HowItWorked from "@/components/tip/HowItWorked";
 import { fireConfetti } from "@/components/tip/confetti";
 
-type SentResult = { transactionId: string; activityUrl: string };
+type SentResult = {
+  transactionId: string;
+  activityUrl: string;
+  amountUsd: number;
+};
 
 export default function TipPage({ handle }: { handle: string }) {
   // undefined = loading, null = not found
   const [creator, setCreator] = useState<Creator | null | undefined>(undefined);
   const [ua, setUa] = useState<UniversalAccount>();
+  const [eoa, setEoa] = useState<string>();
   const [balanceUsd, setBalanceUsd] = useState<number>();
+  const [balanceError, setBalanceError] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
   const [sent, setSent] = useState<SentResult>();
   const [toastVisible, setToastVisible] = useState(false);
+  const [arbiscanUrl, setArbiscanUrl] = useState<string>();
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // 1) Load the creator for this handle.
   useEffect(() => {
@@ -43,14 +53,20 @@ export default function TipPage({ handle }: { handle: string }) {
     try {
       const { totalUsd } = await getUnifiedBalance(account);
       setBalanceUsd(totalUsd);
+      setBalanceError(false);
     } catch {
-      // keep the previous number; the ↻ button lets the fan retry
+      // Surface a retry card only when we have nothing to show yet.
+      setBalanceUsd((prev) => {
+        if (prev === undefined) setBalanceError(true);
+        return prev;
+      });
     }
   }, []);
 
   const initAccount = useCallback(
-    async (eoa: string) => {
-      const account = makeUniversalAccount(eoa);
+    async (address: string) => {
+      const account = makeUniversalAccount(address);
+      setEoa(address);
       setUa(account);
       await refreshBalance(account);
     },
@@ -81,7 +97,29 @@ export default function TipPage({ handle }: { handle: string }) {
   function handleSent(result: SentResult) {
     setSent(result);
     setToastVisible(true);
+    setArbiscanUrl(undefined);
     fireConfetti();
+    // Upgrade the toast to a verifiable Arbiscan link once the settlement
+    // transfer is observed on Arbitrum.
+    if (creator) {
+      watchForSettlement({
+        receiver: creator.receivingAddress,
+        amountUsdc: result.amountUsd,
+        onSettled: (txHash) =>
+          setArbiscanUrl(`https://arbiscan.io/tx/${txHash}`),
+      });
+    }
+  }
+
+  async function handleCopyAddress() {
+    if (!eoa) return;
+    try {
+      await navigator.clipboard.writeText(eoa);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard unavailable — the address is selectable
+    }
   }
 
   async function handleSignOut() {
@@ -91,9 +129,13 @@ export default function TipPage({ handle }: { handle: string }) {
       // ignore — clear local state regardless
     }
     setUa(undefined);
+    setEoa(undefined);
     setBalanceUsd(undefined);
+    setBalanceError(false);
     setSent(undefined);
     setToastVisible(false);
+    setArbiscanUrl(undefined);
+    setShowTopUp(false);
   }
 
   // ── Loading ────────────────────────────────────────────────────────────
@@ -155,13 +197,55 @@ export default function TipPage({ handle }: { handle: string }) {
         <>
           <BalancePill usd={balanceUsd} onRefresh={() => refreshBalance(ua)} />
 
-          {balanceUsd === 0 ? (
+          {balanceError && balanceUsd === undefined ? (
+            <div className="rounded-3xl border border-card-border bg-card p-6 text-center">
+              <p className="font-semibold">We couldn&apos;t load your balance</p>
+              <p className="mt-1 text-sm text-muted">
+                It&apos;s not you — give it another try.
+              </p>
+              <button
+                type="button"
+                onClick={() => refreshBalance(ua)}
+                className="mt-4 w-full rounded-xl bg-brand py-3 font-semibold text-white transition hover:bg-brand-strong"
+              >
+                Try again
+              </button>
+            </div>
+          ) : balanceUsd === 0 ? (
             <div className="rounded-3xl border border-card-border bg-card p-6 text-center">
               <p className="font-semibold">Your balance is empty</p>
               <p className="mt-1 text-sm text-muted">
-                Add money from any account you already have — it shows up here
-                as one number.
+                Add money once and it shows up here as one number — then tipping
+                is one tap.
               </p>
+              <button
+                type="button"
+                onClick={() => setShowTopUp((s) => !s)}
+                className="mt-4 w-full rounded-xl bg-brand py-3 font-semibold text-white transition hover:bg-brand-strong"
+              >
+                {showTopUp ? "Hide" : "Add money"}
+              </button>
+              {showTopUp && eoa && (
+                <div className="mt-4 flex flex-col gap-2 text-left">
+                  <p className="text-sm text-muted">
+                    This is your TipJet account number. Send digital dollars
+                    (USDC) to it from any exchange or wallet — on the Arbitrum
+                    or Base network — and they appear here as your balance.
+                  </p>
+                  <div className="flex items-center gap-2 rounded-xl border border-card-border bg-background p-3">
+                    <code className="min-w-0 flex-1 break-all font-mono text-xs">
+                      {eoa}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={handleCopyAddress}
+                      className="shrink-0 rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-strong"
+                    >
+                      {copied ? "Copied ✓" : "Copy"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : balanceUsd !== undefined ? (
             <TipWidget
@@ -187,7 +271,7 @@ export default function TipPage({ handle }: { handle: string }) {
 
       {sent && toastVisible && (
         <SettledToast
-          activityUrl={sent.activityUrl}
+          arbiscanUrl={arbiscanUrl}
           onClose={() => setToastVisible(false)}
         />
       )}

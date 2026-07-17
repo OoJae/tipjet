@@ -10,6 +10,12 @@
 
 > Record landscape on desktop, plus a phone capture of the login for the first beat.
 > The magic moment must land by ~0:30. Keep the cursor slow and deliberate.
+>
+> **Staging (do this before hitting record):** fan session in Browser A (or the
+> phone) logged in with the funded demo email; creator dashboard open in
+> Browser B, already logged in. One browser cannot hold both sessions — Magic
+> keeps one login per origin. Do a full rehearsal tip first so the 7702
+> authorization is already done and the demo take gets the fastest path.
 
 | Time | On screen | Say |
 |---|---|---|
@@ -17,7 +23,7 @@
 | **0:07** | Type email → 6-digit code → logged in | "No seed phrase. No wallet install. No extension. That's Magic — and behind that code, an account already exists." |
 | **0:18** | The balance pill appears: **$23.40** | "That's everything I hold, across several chains, shown as one number. Particle Universal Accounts — and it's the *same address* as my email login, upgraded in place with EIP-7702." |
 | **0:26** | Tap **Tip $5** → spinner → success pop → "Sent ❤️" | "One tap. No gas prompt, no chain selector." |
-| **0:30** | **The settled-on-Arbitrum moment:** the "Settled on Arbitrum ✓" line, then click through to Arbiscan showing the USDC transfer to the creator | "And here's the receipt: five real dollars of USDC, on Arbitrum, in the creator's account." |
+| **0:30** | **The settled-on-Arbitrum moment:** the toast upgrades live from "Settling on Arbitrum…" to **"Settled on Arbitrum ✓"** — click **"See it for yourself ↗"** and the Arbiscan transfer fills the frame | "And it's not a claim — here's the transfer, on Arbitrum, verifiable by anyone." |
 | **0:45** | Cut to the creator dashboard: the tip pings into the **live feed** — "+$5.00 · just now" — next to the balance and withdraw button | "The creator sees it land live, and can withdraw — it's native USDC on Arbitrum, spendable anywhere." |
 | **0:55** | **Reveal line** as on-screen text over the two screens side by side | "The fan paid with a token on a different chain. The creator received USDC on Arbitrum. Nobody touched a bridge, a gas token, or a chain selector. Same address throughout." |
 | **1:10** | Quick flash of `/dev` smoke-test log (same-address assertion, unified balance, signed authorization) | "Every step is logged — Magic signs the 7702 authorization, Particle routes the liquidity, Arbitrum settles it." |

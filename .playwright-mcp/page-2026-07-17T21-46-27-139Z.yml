@@ -1,0 +1,33 @@
+- generic [active] [ref=f33e1]:
+  - main [ref=f33e2]:
+    - generic [ref=f33e3]:
+      - generic [ref=f33e4]:
+        - generic [ref=f33e5]: TipJet
+        - link "Dashboard" [ref=f33e6] [cursor=pointer]:
+          - /url: /dashboard
+      - generic [ref=f33e7]:
+        - heading "Get tipped in dollars. From anyone. Instantly." [level=1] [ref=f33e8]
+        - paragraph [ref=f33e9]: Your fans tip with one tap. You get real dollars — no forms, no fees to think about, no crypto homework.
+        - link "Claim your link" [ref=f33e10] [cursor=pointer]:
+          - /url: /claim
+        - paragraph [ref=f33e11]: Free to start. Your first tip could land today.
+      - generic [ref=f33e12]:
+        - heading "How it works" [level=2] [ref=f33e13]
+        - list [ref=f33e14]:
+          - listitem [ref=f33e15]:
+            - generic [ref=f33e16]: "1"
+            - generic [ref=f33e17]:
+              - heading "Claim your link" [level=3] [ref=f33e18]
+              - paragraph [ref=f33e19]: Pick your handle and sign in with just your email. Ten seconds, tops.
+          - listitem [ref=f33e20]:
+            - generic [ref=f33e21]: "2"
+            - generic [ref=f33e22]:
+              - heading "Share it anywhere" [level=3] [ref=f33e23]
+              - paragraph [ref=f33e24]: Drop it in your bio, your stream, your posts — anywhere fans can tap.
+          - listitem [ref=f33e25]:
+            - generic [ref=f33e26]: "3"
+            - generic [ref=f33e27]:
+              - heading "Tips land instantly" [level=3] [ref=f33e28]
+              - paragraph [ref=f33e29]: Real dollars in your balance the moment a fan taps. No forms, no waiting.
+      - generic [ref=f33e30]: Built on Magic · Particle Universal Accounts · Arbitrum
+  - alert [ref=f33e31]

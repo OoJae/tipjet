@@ -30,13 +30,16 @@ export async function handleMagicEIP7702Authorizations(
   const magic = getMagic();
   const authorizations: EIP7702Authorization[] = [];
   // Identical auth tuples (same delegate impl + chain + nonce) need signing once.
-  const byNonce = new Map<number, string>();
+  // Key by the FULL tuple: a fresh EOA has nonce 0 on every chain, so a
+  // nonce-only key would reuse a signature signed for the wrong chainId.
+  const byTuple = new Map<string, string>();
 
   for (const userOp of userOps) {
     const auth = userOp.eip7702Auth;
     if (!auth || userOp.eip7702Delegated) continue;
 
-    let serialized = byNonce.get(auth.nonce);
+    const tupleKey = `${Number(auth.chainId)}:${auth.address.toLowerCase()}:${auth.nonce}`;
+    let serialized = byTuple.get(tupleKey);
     if (!serialized) {
       // Magic signs the EIP-7702 authorization tuple.
       const sig = await magic.wallet.sign7702Authorization({
@@ -68,7 +71,7 @@ export async function handleMagicEIP7702Authorizations(
         serialized,
       });
 
-      byNonce.set(auth.nonce, serialized);
+      byTuple.set(tupleKey, serialized);
     }
 
     authorizations.push({ userOpHash: userOp.userOpHash, signature: serialized });

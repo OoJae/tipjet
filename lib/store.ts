@@ -5,8 +5,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import type { Creator } from "./creators";
 
-const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+// Vercel's Upstash marketplace integration injects KV_REST_API_* names;
+// a direct Upstash setup uses UPSTASH_REDIS_REST_*. Accept both.
+const UPSTASH_URL =
+  process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+const UPSTASH_TOKEN =
+  process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
 const DEV_FILE = "/tmp/tipjet-creators.json";
 
 const key = (handle: string) => `creator:${handle}`;
@@ -49,7 +53,17 @@ export function usingUpstash(): boolean {
   return Boolean(UPSTASH_URL && UPSTASH_TOKEN);
 }
 
+/** On Vercel, silently falling back to per-lambda memory would lose registrations. */
+function assertProductionStore() {
+  if (!usingUpstash() && process.env.VERCEL) {
+    throw new Error(
+      "Creator registry misconfigured: set UPSTASH_REDIS_REST_URL/TOKEN (or connect the Upstash Vercel integration).",
+    );
+  }
+}
+
 export async function getCreator(handle: string): Promise<Creator | null> {
+  assertProductionStore();
   if (usingUpstash()) {
     const raw = (await upstash(["GET", key(handle)])) as string | null;
     return raw ? (JSON.parse(raw) as Creator) : null;
@@ -59,6 +73,7 @@ export async function getCreator(handle: string): Promise<Creator | null> {
 
 /** Create the creator iff the handle is free. Returns null if taken. */
 export async function createCreator(creator: Creator): Promise<Creator | null> {
+  assertProductionStore();
   if (usingUpstash()) {
     const set = (await upstash(["SET", key(creator.handle), JSON.stringify(creator), "NX"])) as
       | string

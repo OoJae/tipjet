@@ -21,7 +21,11 @@ export default function TipWidget({
   creator: Creator;
   ua: UniversalAccount;
   balanceUsd: number;
-  onSent: (result: { transactionId: string; activityUrl: string }) => void;
+  onSent: (result: {
+    transactionId: string;
+    activityUrl: string;
+    amountUsd: number;
+  }) => void;
   onBalanceRefresh: () => void;
 }) {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -84,7 +88,7 @@ export default function TipWidget({
         amount.toString(),
       );
       setPhase("success");
-      onSent(result);
+      onSent({ ...result, amountUsd: amount });
       onBalanceRefresh();
     } catch (e) {
       const err = e as { code?: number; message?: string };
