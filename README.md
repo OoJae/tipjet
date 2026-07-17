@@ -76,15 +76,13 @@ The interesting engineering lives in `lib/eip7702.ts`. Particle's official 7702 
 
 ---
 
-## Status & known platform issue (honest disclosure)
+## Status: verified live, end to end — with on-chain proof
 
-**Verified live, end to end:** Magic email login → Universal Account construction in EIP-7702 mode (same-address invariant logged) → real unified balance sourced from funds held on **Base** → transaction building, 7702 authorization signing, and `rootHash` signing against the live SDK.
+**The full pipeline is proven in production** (July 17, 2026): Magic email login → Universal Account in EIP-7702 mode (same-address invariant asserted on every session) → real unified balance aggregated across chains → tip → **USDC settled on Arbitrum One**.
 
-**Currently affected by a Particle-side outage:** cross-chain settlement (source chain ≠ Arbitrum) is hitting Particle's publicly-acknowledged **V1→V2 migration outage** — the router returns `-32653 "Insufficient primary token balance"` even when funds are present. Particle's dev rel confirmed the issue in the hackathon Discord on **July 17** and is investigating.
+**See it on-chain:** [this Arbiscan transaction](https://arbiscan.io/tx/0xa9f61dda499dba73374f4fd8f17b3bbf6a47f8e779b5f4c181293cd2e9371956) is a single production tip sent through the deployed app. In one bundle it shows the **EIP-7702 delegation** (`Delegate to 0x13E0…89A5A` — the Magic EOA upgraded in place), the **USDC transfer to the creator**, and Arbiscan's own *Account Abstraction Bundle* decoding. The fan-facing toast links to exactly this page ("Settled on Arbitrum ✓ — see it for yourself"), resolved live by watching the settlement transfer land (`lib/settlement.ts`).
 
-- **Same-chain settlement works today:** funds already on Arbitrum settle as USDC to the creator normally.
-- **No TipJet code changes are needed:** the identical code path (`lib/send.ts`) completes cross-chain automatically the moment Particle's routing is restored — the destination is declared, the source is Particle's job.
-- **Fans never see the raw error:** `-32653` is mapped to "We couldn't move your balance just now — please try again in a few minutes."
+**Battle scar worth knowing about:** Particle ran its V1→V2 migration *during* the hackathon, taking cross-chain routing down mid-build (`-32653` on every route; confirmed by their dev rel in the hackathon Discord on July 17). TipJet was migrated to SDK 2.0.3 the same evening, a probe monitored the router, and the first cross-chain settlement was fired within minutes of Particle's fix landing. Fans never saw a raw error at any point — the outage was mapped to "We couldn't move your balance just now — please try again in a few minutes."
 
 ---
 
