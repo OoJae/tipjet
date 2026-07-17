@@ -32,10 +32,27 @@ export async function postTipNote(input: {
   }
 }
 
-/** Latest notes for a handle (newest first, max 25 per the API). */
-export async function fetchTipNotes(handle: string): Promise<TipNote[]> {
+export interface TipsSummary {
+  notes: TipNote[];
+  /** Store-tracked running total of note-attested tips (drives the goal bar). */
+  raisedUsd: number;
+}
+
+/** Latest notes + raised total for a handle (notes newest first, max 25). */
+export async function fetchTipsSummary(handle: string): Promise<TipsSummary> {
   const res = await fetch(`/api/tips?handle=${encodeURIComponent(handle)}`);
   if (!res.ok) throw new Error(`Failed to load tip notes (${res.status})`);
-  const body = (await res.json()) as { notes?: TipNote[] };
-  return Array.isArray(body.notes) ? body.notes : [];
+  const body = (await res.json()) as { notes?: TipNote[]; raisedUsd?: number };
+  return {
+    notes: Array.isArray(body.notes) ? body.notes : [],
+    raisedUsd:
+      typeof body.raisedUsd === "number" && Number.isFinite(body.raisedUsd)
+        ? body.raisedUsd
+        : 0,
+  };
+}
+
+/** Latest notes for a handle (newest first, max 25 per the API). */
+export async function fetchTipNotes(handle: string): Promise<TipNote[]> {
+  return (await fetchTipsSummary(handle)).notes;
 }

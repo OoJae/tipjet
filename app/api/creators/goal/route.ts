@@ -1,22 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCreator, updateCreatorGoal } from "@/lib/store";
-import { normalizeHandle, isValidHandle } from "@/lib/creators";
+import { verifyMessage } from "ethers";
+import { getCreator, updateCreatorGoal, rateLimit } from "@/lib/store";
+import {
+  normalizeHandle,
+  isValidHandle,
+  goalSignaturePayload,
+} from "@/lib/creators";
+
+const MAX_SIGNATURE_AGE_MS = 10 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => null)) as {
       handle?: unknown;
-      receivingAddress?: unknown;
       goalUsd?: unknown;
       goalLabel?: unknown;
+      ts?: unknown;
+      signature?: unknown;
     } | null;
 
     if (
       !body ||
       typeof body.handle !== "string" ||
-      typeof body.receivingAddress !== "string"
+      typeof body.ts !== "number" ||
+      typeof body.signature !== "string"
     ) {
       return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    }
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (!(await rateLimit(`goal:${ip}`, 6, 60))) {
+      return NextResponse.json(
+        { error: "Too many attempts — try again in a minute." },
+        { status: 429 },
+      );
     }
     const handle = normalizeHandle(body.handle);
     if (!isValidHandle(handle)) {
@@ -41,16 +57,35 @@ export async function POST(req: NextRequest) {
         ? body.goalLabel.trim().slice(0, 40)
         : "";
 
+    if (Math.abs(Date.now() - body.ts) > MAX_SIGNATURE_AGE_MS) {
+      return NextResponse.json(
+        { error: "That request expired — please try again." },
+        { status: 403 },
+      );
+    }
+
     const creator = await getCreator(handle);
     if (!creator) {
       return NextResponse.json({ error: "Unknown handle." }, { status: 404 });
     }
-    if (
-      creator.receivingAddress.toLowerCase() !==
-      body.receivingAddress.trim().toLowerCase()
-    ) {
+
+    // Only the wallet that owns this handle can change its goal: the client
+    // signs the exact payload with the creator's Magic wallet, and we require
+    // the recovered signer to match the stored receiving address. (The address
+    // itself is public — on-chain and in GET /api/creators — so it is NOT a
+    // credential; the signature is.)
+    let recovered: string;
+    try {
+      recovered = verifyMessage(
+        goalSignaturePayload(handle, goalUsd, goalLabel, body.ts),
+        body.signature,
+      );
+    } catch {
+      return NextResponse.json({ error: "Invalid signature." }, { status: 403 });
+    }
+    if (recovered.toLowerCase() !== creator.receivingAddress.toLowerCase()) {
       return NextResponse.json(
-        { error: "This handle isn't linked to that account." },
+        { error: "This handle isn't linked to your account." },
         { status: 403 },
       );
     }

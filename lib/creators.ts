@@ -61,16 +61,35 @@ export async function claimHandle(input: {
   return body;
 }
 
+/** The exact message a creator's wallet signs to authorize a goal change. */
+export function goalSignaturePayload(
+  handle: string,
+  goalUsd: number,
+  goalLabel: string,
+  ts: number,
+): string {
+  return `TipJet goal update\nhandle: ${handle}\ngoal: ${goalUsd}\nlabel: ${goalLabel}\nts: ${ts}`;
+}
+
 export async function setCreatorGoal(input: {
   handle: string;
-  receivingAddress: string;
   goalUsd: number;
   goalLabel?: string;
+  /** Signs with the creator's wallet (e.g. Magic signer's signMessage). */
+  signMessage: (message: string) => Promise<string>;
 }): Promise<Creator> {
+  const ts = Date.now();
+  // Normalize EXACTLY like the server does before verifying, or the
+  // signature won't recover to the same payload.
+  const goalUsd = Math.round(input.goalUsd * 100) / 100;
+  const goalLabel = (input.goalLabel?.trim() ?? "").slice(0, 40);
+  const signature = await input.signMessage(
+    goalSignaturePayload(normalizeHandle(input.handle), goalUsd, goalLabel, ts),
+  );
   const res = await fetch("/api/creators/goal", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ handle: input.handle, goalUsd, goalLabel, ts, signature }),
   });
   const body = await res.json().catch(() => ({}));
   if (res.status === 403 || res.status === 404) {

@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { UniversalAccount } from "@particle-network/universal-account-sdk";
-import { loginEmail, isLoggedIn, getAddress, logout } from "@/lib/magic";
+import {
+  loginEmail,
+  isLoggedIn,
+  getAddress,
+  logout,
+  getMagicSigner,
+} from "@/lib/magic";
 import {
   makeUniversalAccount,
   getUnifiedBalance,
@@ -243,9 +249,11 @@ export default function Dashboard() {
       const label = goalLabelInput.trim();
       await setCreatorGoal({
         handle,
-        receivingAddress: address,
         goalUsd: parsed,
         ...(label ? { goalLabel: label } : {}),
+        // Prove ownership: sign the payload with the logged-in Magic wallet.
+        signMessage: async (message) =>
+          (await getMagicSigner()).signMessage(message),
       });
       setGoalSaved(true);
       if (goalTimer.current) clearTimeout(goalTimer.current);

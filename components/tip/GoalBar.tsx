@@ -1,21 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Contract,
-  EventLog,
-  JsonRpcProvider,
-  formatUnits,
-  type Log,
-} from "ethers";
-import { ARBITRUM_RPC_URL, ARBITRUM_USDC } from "@/lib/tokens";
+import { fetchTipsSummary } from "@/lib/tips";
 
-const TRANSFER_ABI = [
-  "event Transfer(address indexed from, address indexed to, uint256 value)",
-];
-// Arbitrum One produces ~4 blocks/second, so 250k blocks ≈ the last ~17 hours.
-const BACKFILL_BLOCKS = 250_000;
-const MIN_RANGE = 10_000; // floor for split-on-error when an RPC caps getLogs ranges
+const POLL_MS = 20_000;
 
 function fmtUsd(n: number): string {
   return n.toLocaleString("en-US", {
@@ -25,100 +13,79 @@ function fmtUsd(n: number): string {
 }
 
 /**
- * Subtle progress bar toward a creator's tip goal, summed from USDC received
- * on Arbitrum over the backfill window. One query on mount — no polling.
+ * Subtle progress bar toward a creator's tip goal.
+ *
+ * Reads the store-tracked running total (incremented as tips post their notes)
+ * rather than scanning chain logs from every visitor's browser: it never
+ * resets with a block window, ignores self-deposits, and costs one tiny API
+ * call. Polls so the bar visibly moves after a tip.
  */
 export default function GoalBar({
   goalUsd,
   goalLabel,
-  receivingAddress,
+  handle,
 }: {
   goalUsd: number;
   goalLabel?: string;
-  receivingAddress: string;
+  handle: string;
 }) {
-  // undefined = still summing
+  // undefined = first load in flight
   const [raisedUsd, setRaisedUsd] = useState<number>();
 
   useEffect(() => {
-    if (!receivingAddress) return;
-
     let cancelled = false;
-    const provider = new JsonRpcProvider(ARBITRUM_RPC_URL);
-    const usdc = new Contract(ARBITRUM_USDC, TRANSFER_ABI, provider);
-    const filter = usdc.filters.Transfer(null, receivingAddress);
-
-    // queryFilter with recursive halving: some public RPCs cap getLogs ranges.
-    const queryRange = async (
-      from: number,
-      to: number,
-    ): Promise<(EventLog | Log)[]> => {
+    let busy = false;
+    const load = async () => {
+      if (busy || cancelled) return;
+      busy = true;
       try {
-        return await usdc.queryFilter(filter, from, to);
-      } catch (err) {
-        if (to - from <= MIN_RANGE) throw err;
-        const mid = Math.floor((from + to) / 2);
-        const [a, b] = await Promise.all([
-          queryRange(from, mid),
-          queryRange(mid + 1, to),
-        ]);
-        return [...a, ...b];
+        const { raisedUsd: raised } = await fetchTipsSummary(handle);
+        if (!cancelled) setRaisedUsd(raised);
+      } catch {
+        // keep the previous number; first-load failure shows an unfilled bar
+        if (!cancelled) setRaisedUsd((prev) => prev ?? 0);
+      } finally {
+        busy = false;
       }
     };
-
-    (async () => {
-      try {
-        const latest = await provider.getBlockNumber();
-        const logs = await queryRange(
-          Math.max(latest - BACKFILL_BLOCKS, 0),
-          latest,
-        );
-        let total = BigInt(0);
-        for (const log of logs) {
-          if (log instanceof EventLog) total += log.args.value as bigint;
-        }
-        if (!cancelled) setRaisedUsd(Number(formatUnits(total, 6)));
-      } catch {
-        // couldn't read — show an unfilled bar rather than pulse forever
-        if (!cancelled) setRaisedUsd(0);
-      }
-    })();
-
+    void load();
+    const id = setInterval(() => void load(), POLL_MS);
     return () => {
       cancelled = true;
-      provider.destroy();
+      clearInterval(id);
     };
-  }, [receivingAddress]);
+  }, [handle]);
 
-  const label = goalLabel?.trim() ? goalLabel : "Tip goal";
   const loading = raisedUsd === undefined;
-  const pct =
-    loading || goalUsd <= 0 ? 0 : Math.min((raisedUsd / goalUsd) * 100, 100);
+  const pct = loading ? 0 : Math.min((raisedUsd / goalUsd) * 100, 100);
 
   return (
-    <section aria-label="Tip goal progress" className="flex flex-col gap-1.5">
-      <p className="text-sm">
-        <span className="font-medium">{label}</span>
-        {!loading && (
-          <span className="text-muted">
-            {" — "}
-            <span className="font-semibold tabular-nums text-money">
-              ${fmtUsd(raisedUsd)}
-            </span>{" "}
-            of <span className="tabular-nums">${fmtUsd(goalUsd)}</span>
+    <div className="w-full">
+      {!loading && (
+        <p className="mb-1.5 text-sm">
+          <span className="font-semibold">{goalLabel ?? "Tip goal"}</span>
+          <span className="text-muted"> — </span>
+          <span className="font-semibold tabular-nums text-money">
+            ${fmtUsd(raisedUsd)}
           </span>
-        )}
-      </p>
+          <span className="text-muted"> of ${fmtUsd(goalUsd)}</span>
+        </p>
+      )}
       <div
-        className={`h-3 w-full overflow-hidden rounded-full border border-card-border bg-background ${
+        className={`h-2 w-full overflow-hidden rounded-full border border-card-border bg-background ${
           loading ? "animate-pulse" : ""
         }`}
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={goalUsd}
+        aria-valuenow={loading ? undefined : Math.min(raisedUsd, goalUsd)}
+        aria-label={goalLabel ?? "Tip goal"}
       >
         <div
-          className="h-full rounded-full bg-brand transition-[width] duration-700 ease-out"
+          className="h-full rounded-full bg-brand transition-[width] duration-700"
           style={{ width: `${pct}%` }}
         />
       </div>
-    </section>
+    </div>
   );
 }

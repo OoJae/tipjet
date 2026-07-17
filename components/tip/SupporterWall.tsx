@@ -96,7 +96,7 @@ export default function SupporterWall({ handle }: { handle: string }) {
                 </p>
               </div>
               {note.message !== "" && (
-                <p className="mt-0.5 text-sm italic text-muted">
+                <p className="mt-0.5 break-words text-sm italic text-muted">
                   {note.message}
                 </p>
               )}

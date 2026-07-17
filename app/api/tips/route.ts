@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pushTipNote, getTipNotes } from "@/lib/store";
+import {
+  pushTipNote,
+  getTipNotes,
+  getRaised,
+  getCreator,
+  rateLimit,
+} from "@/lib/store";
 import { normalizeHandle, isValidHandle, type TipNote } from "@/lib/creators";
 
 /** Drop ASCII control characters (incl. newlines) so notes render cleanly. */
@@ -12,6 +18,17 @@ function stripControlChars(input: string): string {
   return out;
 }
 
+// Minimal public-wall hygiene — not a moderation system (hackathon scope).
+const BLOCKED = ["nigger", "faggot", "kike", "chink", "spic", "tranny"];
+function containsBlocked(text: string): boolean {
+  const lower = text.toLowerCase();
+  return BLOCKED.some((w) => lower.includes(w));
+}
+
+function clientIp(req: NextRequest): string {
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+}
+
 export async function GET(req: NextRequest) {
   try {
     const raw = req.nextUrl.searchParams.get("handle");
@@ -22,8 +39,11 @@ export async function GET(req: NextRequest) {
     if (!isValidHandle(handle)) {
       return NextResponse.json({ error: "Invalid handle." }, { status: 400 });
     }
-    const notes = await getTipNotes(handle, 25);
-    return NextResponse.json({ notes });
+    const [notes, raisedUsd] = await Promise.all([
+      getTipNotes(handle, 25),
+      getRaised(handle),
+    ]);
+    return NextResponse.json({ notes, raisedUsd });
   } catch {
     return NextResponse.json(
       { error: "Could not load notes right now." },
@@ -47,6 +67,17 @@ export async function POST(req: NextRequest) {
     const handle = normalizeHandle(body.handle);
     if (!isValidHandle(handle)) {
       return NextResponse.json({ error: "Invalid handle." }, { status: 400 });
+    }
+    // Rate-limit before any store writes (4 notes/min/IP).
+    if (!(await rateLimit(`tips:${clientIp(req)}`, 4, 60))) {
+      return NextResponse.json(
+        { error: "Too many notes — try again in a minute." },
+        { status: 429 },
+      );
+    }
+    // Notes only for creators that exist (blocks unbounded key spam).
+    if (!(await getCreator(handle))) {
+      return NextResponse.json({ error: "Unknown creator." }, { status: 404 });
     }
     if (body.name !== undefined && typeof body.name !== "string") {
       return NextResponse.json({ error: "Invalid name." }, { status: 400 });
@@ -76,6 +107,13 @@ export async function POST(req: NextRequest) {
       .trim()
       .slice(0, 140)
       .trim();
+
+    if (containsBlocked(name) || containsBlocked(message)) {
+      return NextResponse.json(
+        { error: "That note can't be posted." },
+        { status: 400 },
+      );
+    }
 
     const note: TipNote = { name, message, amountUsd, at: Date.now() };
     await pushTipNote(handle, note);

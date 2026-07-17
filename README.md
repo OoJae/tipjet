@@ -22,7 +22,7 @@ Built solo for the **Encode UXmaxx hackathon** — one stack, three prizes:
 
 Around that core flow:
 
-- **Tip notes + supporter wall.** A fan can sign their tip with a name and a short note ("your videos got me through finals ❤️"); the creator's page shows a wall of recent supporters, so a tip page never looks empty and every tip reads like a message, not a payment.
+- **Tip notes + supporter wall.** A fan can sign their tip with a name and a short note ("your videos got me through finals ❤️"); the creator's page shows a wall of recent supporters, so a tip page never looks empty and every tip reads like a message, not a payment. *(Honest scope: notes are app-attested — posted by the app after a confirmed send, rate-limited per IP, creators-only, filtered — not yet chain-verified. On-chain `Tip` events are the roadmap item; the money itself is always on-chain and provable.)* Goal changes, by contrast, **are** cryptographically gated: the dashboard signs an EIP-191 payload with the creator's Magic wallet and the server verifies the recovered signer against the stored receiving address.
 - **Goal bar.** Creators can set a labelled goal ("New mic fund") and the page shows a progress bar that ticks up as tips land — a reason to tip *now*.
 - **QR + request links.** Every creator gets a scannable QR code for their page (`/api/qr`) — printable for a stream overlay, a bio, or a merch table — plus shareable request links.
 - **OG previews.** Dropping a tip link into a chat or timeline unfurls into a proper share card ("Tip Alex · @alex · TipJet"), so the link sells itself before anyone clicks.

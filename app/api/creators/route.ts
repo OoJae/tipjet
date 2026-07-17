@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCreator, createCreator } from "@/lib/store";
+import { getCreator, createCreator, rateLimit } from "@/lib/store";
 import { normalizeHandle, isValidHandle, type Creator } from "@/lib/creators";
 
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
@@ -43,6 +43,16 @@ export async function POST(req: NextRequest) {
       typeof body.receivingAddress !== "string"
     ) {
       return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    }
+
+    // Blunt handle-squatting loops (3 registrations/min/IP).
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (!(await rateLimit(`claim:${ip}`, 3, 60))) {
+      return NextResponse.json(
+        { error: "Too many attempts — try again in a minute." },
+        { status: 429 },
+      );
     }
 
     const handle = normalizeHandle(body.handle);

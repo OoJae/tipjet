@@ -142,14 +142,55 @@ export async function updateCreatorGoal(
   return updated;
 }
 
+const raisedKey = (handle: string) => `raised:${handle}`;
+const devRaised: Map<string, number> = new Map();
+const devRates: Map<string, { count: number; resetAt: number }> = new Map();
+
+/** Running total of note-attested tips (drives the goal bar; no chain scans). */
+export async function getRaised(handle: string): Promise<number> {
+  assertProductionStore();
+  if (usingUpstash()) {
+    const raw = (await upstash(["GET", raisedKey(handle)])) as string | null;
+    const n = raw === null ? 0 : Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return devRaised.get(handle) ?? 0;
+}
+
+/**
+ * Fixed-window rate limiter (INCR + EXPIRE). Returns true when the caller is
+ * within `limit` events per `windowSec`. Dev fallback is in-memory.
+ */
+export async function rateLimit(
+  bucket: string,
+  limit: number,
+  windowSec: number,
+): Promise<boolean> {
+  if (usingUpstash()) {
+    const count = (await upstash(["INCR", `rl:${bucket}`])) as number;
+    if (count === 1) await upstash(["EXPIRE", `rl:${bucket}`, windowSec]);
+    return count <= limit;
+  }
+  const now = Date.now();
+  const entry = devRates.get(bucket);
+  if (!entry || now > entry.resetAt) {
+    devRates.set(bucket, { count: 1, resetAt: now + windowSec * 1000 });
+    return true;
+  }
+  entry.count += 1;
+  return entry.count <= limit;
+}
+
 /** Prepend a fan's note to the creator's list, keeping the newest NOTES_MAX. */
 export async function pushTipNote(handle: string, note: TipNote): Promise<void> {
   assertProductionStore();
   if (usingUpstash()) {
     await upstash(["LPUSH", notesKey(handle), JSON.stringify(note)]);
     await upstash(["LTRIM", notesKey(handle), 0, NOTES_MAX - 1]);
+    await upstash(["INCRBYFLOAT", raisedKey(handle), String(note.amountUsd)]);
     return;
   }
+  devRaised.set(handle, (devRaised.get(handle) ?? 0) + note.amountUsd);
   const list = devNotes.get(handle) ?? [];
   list.unshift(note);
   devNotes.set(handle, list.slice(0, NOTES_MAX));

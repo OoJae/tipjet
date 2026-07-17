@@ -203,7 +203,7 @@ export default function TipPage({ handle }: { handle: string }) {
         <GoalBar
           goalUsd={creator.goalUsd}
           goalLabel={creator.goalLabel}
-          receivingAddress={creator.receivingAddress}
+          handle={creator.handle}
         />
       )}
 
