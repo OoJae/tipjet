@@ -3,7 +3,7 @@
 // (The fallback does NOT persist reliably on serverless — set the two
 // UPSTASH_* env vars in production.)
 import { readFileSync, writeFileSync } from "node:fs";
-import type { Creator } from "./creators";
+import type { Creator, TipNote } from "./creators";
 
 // Vercel's Upstash marketplace integration injects KV_REST_API_* names;
 // a direct Upstash setup uses UPSTASH_REDIS_REST_*. Accept both.
@@ -12,8 +12,11 @@ const UPSTASH_URL =
 const UPSTASH_TOKEN =
   process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
 const DEV_FILE = "/tmp/tipjet-creators.json";
+const NOTES_DEV_FILE = "/tmp/tipjet-tipnotes.json";
+const NOTES_MAX = 100;
 
 const key = (handle: string) => `creator:${handle}`;
+const notesKey = (handle: string) => `tips:${handle}`;
 
 async function upstash(cmd: unknown[]): Promise<unknown> {
   const res = await fetch(UPSTASH_URL!, {
@@ -44,6 +47,26 @@ const devStore: Map<string, Creator> = devLoad();
 function devPersist() {
   try {
     writeFileSync(DEV_FILE, JSON.stringify([...devStore.values()]));
+  } catch {
+    /* best-effort */
+  }
+}
+
+function devLoadNotes(): Map<string, TipNote[]> {
+  try {
+    const raw = JSON.parse(readFileSync(NOTES_DEV_FILE, "utf8")) as Record<
+      string,
+      TipNote[]
+    >;
+    return new Map(Object.entries(raw));
+  } catch {
+    return new Map();
+  }
+}
+const devNotes: Map<string, TipNote[]> = devLoadNotes();
+function devPersistNotes() {
+  try {
+    writeFileSync(NOTES_DEV_FILE, JSON.stringify(Object.fromEntries(devNotes)));
   } catch {
     /* best-effort */
   }
@@ -84,4 +107,69 @@ export async function createCreator(creator: Creator): Promise<Creator | null> {
   devStore.set(creator.handle, creator);
   devPersist();
   return creator;
+}
+
+/**
+ * Merge goal fields onto an existing creator (plain SET — the record already
+ * exists). goalUsd 0 clears both goal fields. Returns null if the handle is
+ * unknown.
+ */
+export async function updateCreatorGoal(
+  handle: string,
+  goalUsd: number,
+  goalLabel?: string,
+): Promise<Creator | null> {
+  assertProductionStore();
+  const creator = await getCreator(handle);
+  if (!creator) return null;
+
+  const updated: Creator = { ...creator };
+  if (goalUsd === 0) {
+    delete updated.goalUsd;
+    delete updated.goalLabel;
+  } else {
+    updated.goalUsd = goalUsd;
+    if (goalLabel) updated.goalLabel = goalLabel;
+    else delete updated.goalLabel;
+  }
+
+  if (usingUpstash()) {
+    await upstash(["SET", key(handle), JSON.stringify(updated)]);
+  } else {
+    devStore.set(handle, updated);
+    devPersist();
+  }
+  return updated;
+}
+
+/** Prepend a fan's note to the creator's list, keeping the newest NOTES_MAX. */
+export async function pushTipNote(handle: string, note: TipNote): Promise<void> {
+  assertProductionStore();
+  if (usingUpstash()) {
+    await upstash(["LPUSH", notesKey(handle), JSON.stringify(note)]);
+    await upstash(["LTRIM", notesKey(handle), 0, NOTES_MAX - 1]);
+    return;
+  }
+  const list = devNotes.get(handle) ?? [];
+  list.unshift(note);
+  devNotes.set(handle, list.slice(0, NOTES_MAX));
+  devPersistNotes();
+}
+
+/** Newest-first notes for a handle. */
+export async function getTipNotes(
+  handle: string,
+  limit = 25,
+): Promise<TipNote[]> {
+  assertProductionStore();
+  if (usingUpstash()) {
+    const raw = (await upstash([
+      "LRANGE",
+      notesKey(handle),
+      0,
+      limit - 1,
+    ])) as string[];
+    return raw.map((item) => JSON.parse(item) as TipNote);
+  }
+  return (devNotes.get(handle) ?? []).slice(0, limit);
 }

@@ -16,6 +16,20 @@ export const ARBITRUM_CHAIN_ID = 42161;
 export const ARBITRUM_RPC_URL =
   process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL ?? "https://arb1.arbitrum.io/rpc";
 
+/** Human-readable names for UA source/settlement chains (fan-facing copy). */
+export const CHAIN_NAMES: Record<number, string> = {
+  1: "Ethereum",
+  56: "BNB Chain",
+  196: "X Layer",
+  8453: "Base",
+  42161: "Arbitrum",
+  101: "Solana",
+};
+
+export function chainName(id: number): string {
+  return CHAIN_NAMES[id] ?? `chain ${id}`;
+}
+
 /**
  * UniversalX activity page for a UA `transactionId`.
  * NOTE: `sendTransaction` returns a UA-level id, NOT an on-chain Arbitrum tx hash.

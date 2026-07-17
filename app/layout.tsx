@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://tipjet-chi.vercel.app"),
   title: "TipJet — tip anyone, instantly",
   description:
     "Tip your favorite creators with one tap. No wallet setup, no seed phrases, no crypto homework. Creators get real dollars, instantly.",

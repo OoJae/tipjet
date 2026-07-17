@@ -20,6 +20,14 @@ Built solo for the **Encode UXmaxx hackathon** — one stack, three prizes:
 6. **Signing is invisible.** Magic signs (a) the EIP-7702 authorization tuple — first transaction only — and (b) the transaction `rootHash`. The fan sees a spinner, then a success pop.
 7. **Settled on Arbitrum ✓.** The creator's dashboard tip feed updates live. That line is the only chain mention in the entire fan experience — a deliberate trust moment, not a configuration step.
 
+Around that core flow:
+
+- **Tip notes + supporter wall.** A fan can sign their tip with a name and a short note ("your videos got me through finals ❤️"); the creator's page shows a wall of recent supporters, so a tip page never looks empty and every tip reads like a message, not a payment.
+- **Goal bar.** Creators can set a labelled goal ("New mic fund") and the page shows a progress bar that ticks up as tips land — a reason to tip *now*.
+- **QR + request links.** Every creator gets a scannable QR code for their page (`/api/qr`) — printable for a stream overlay, a bio, or a merch table — plus shareable request links.
+- **OG previews.** Dropping a tip link into a chat or timeline unfurls into a proper share card ("Tip Alex · @alex · TipJet"), so the link sells itself before anyone clicks.
+- **Receipt card.** After settlement the fan sees exactly what happened in one line: *"You paid from Base → Alex received dollars on Arbitrum · same account, no bridge."*
+
 ---
 
 ## Architecture
@@ -58,6 +66,8 @@ The interesting engineering lives in `lib/eip7702.ts`. Particle's official 7702 
 - **UX (40):** Email → tip in two taps. One aggregated dollar balance replaces per-chain token lists. Zero chain selectors, gas prompts, bridge UIs or crypto vocabulary anywhere in the fan flow — money is "$5.00". SDK errors are mapped to plain-language messages; a raw error string never reaches a fan.
 - **Innovative use of UA + 7702 (30):** The Magic EOA is upgraded **in place** via EIP-7702 — the UA address *equals* the login address, asserted live in the app on every session. Magic as the 7702 signer is a non-obvious pairing (Particle's own demo uses Privy); the authorization flow was ported to Magic's `{v, r, s}` signature shape in `lib/eip7702.ts`. Both sides of the marketplace are Universal Accounts: a creator's receiving address is the same Magic address they logged in with.
 - **Adoption (20):** Creator tipping is a real consumer market with an obvious wedge: fans hold assets scattered across chains; creators want one spendable currency. Handle claiming takes under a minute (`/claim`), the registry runs on Upstash Redis (production-shaped, in-memory fallback for dev), and the payout — native USDC on Arbitrum — is immediately spendable.
+
+  **The numbers behind the wedge.** The incumbents price the case for us. On take rates: TikTok keeps roughly half the value of a gift by the time it reaches the creator; Twitch Bits carry a ~23–40% markup on the buy side before Twitch's own split; YouTube takes 30% of every Super Chat; Patreon lands around 12–15% all-in once payment processing is counted; even "cheap" Buy Me a Coffee runs 8%+ with processor fees. TipJet's platform fee is 0% — the tip is the payout. On chargebacks: donations generally aren't covered by PayPal's seller protection, and a disputed tip typically costs a streamer a ~$20 dispute fee *on top of* the clawed-back money — a whole genre of "donation griefing" that is impossible on TipJet by construction, because settled USDC cannot be reversed. On geography: Stripe-dependent tipping platforms simply exclude creators in unsupported countries — Nigeria and India among them — no matter how large their audience; TipJet needs only an email address.
 - **Polish (10):** Mobile-first (designed at 375 px), Tailwind v4 design tokens, animated success moment, loading/empty/error states throughout, and a `/dev` smoke-test page kept in the build so judges can watch the raw pipeline log itself.
 
 ### Arbitrum "Road to Open House London" (UX 30 · Creativity 30 · Adoption 20 · Execution 20)

@@ -9,6 +9,8 @@ import { ARBITRUM, ARBITRUM_USDC, universalxActivity } from "./tokens";
 export interface SendResult {
   transactionId: string;
   activityUrl: string;
+  /** Chain ids the funds were sourced from (per the route's tokenChanges). */
+  fromChains: number[];
 }
 
 /**
@@ -55,5 +57,8 @@ export async function sendUsdcOnArbitrum(
   console.log("[send] sendTransaction result", result);
 
   const transactionId: string = result?.transactionId ?? "(submitted)";
-  return { transactionId, activityUrl: universalxActivity(transactionId) };
+  const fromChains: number[] = Array.isArray(transaction.tokenChanges?.fromChains)
+    ? transaction.tokenChanges.fromChains
+    : [];
+  return { transactionId, activityUrl: universalxActivity(transactionId), fromChains };
 }

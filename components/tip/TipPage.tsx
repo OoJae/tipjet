@@ -12,12 +12,15 @@ import BalancePill from "@/components/tip/BalancePill";
 import TipWidget from "@/components/tip/TipWidget";
 import SettledToast from "@/components/tip/SettledToast";
 import HowItWorked from "@/components/tip/HowItWorked";
+import SupporterWall from "@/components/tip/SupporterWall";
+import GoalBar from "@/components/tip/GoalBar";
 import { fireConfetti } from "@/components/tip/confetti";
 
 type SentResult = {
   transactionId: string;
   activityUrl: string;
   amountUsd: number;
+  fromChains: number[];
 };
 
 export default function TipPage({ handle }: { handle: string }) {
@@ -33,6 +36,15 @@ export default function TipPage({ handle }: { handle: string }) {
   const [arbiscanUrl, setArbiscanUrl] = useState<string>();
   const [showTopUp, setShowTopUp] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [initialAmount, setInitialAmount] = useState<number>();
+
+  // Prefill links: /handle?tip=2.50 preselects the amount in the widget.
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("tip");
+    if (!raw) return;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n >= 0.5 && n <= 10000) setInitialAmount(n);
+  }, []);
 
   // 1) Load the creator for this handle.
   useEffect(() => {
@@ -187,6 +199,14 @@ export default function TipPage({ handle }: { handle: string }) {
         <p className="text-muted">Leave {creator.displayName} a tip 💜</p>
       </header>
 
+      {creator.goalUsd !== undefined && creator.goalUsd > 0 && (
+        <GoalBar
+          goalUsd={creator.goalUsd}
+          goalLabel={creator.goalLabel}
+          receivingAddress={creator.receivingAddress}
+        />
+      )}
+
       {bootstrapping && !ua ? (
         <div className="animate-pulse rounded-3xl border border-card-border bg-card p-6 text-center text-muted">
           One moment…
@@ -252,21 +272,27 @@ export default function TipPage({ handle }: { handle: string }) {
               creator={creator}
               ua={ua}
               balanceUsd={balanceUsd}
+              initialAmount={initialAmount}
               onSent={handleSent}
               onBalanceRefresh={() => refreshBalance(ua)}
             />
           ) : null}
 
           {sent && <HowItWorked name={creator.displayName} />}
-
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="mx-auto min-h-[44px] px-4 text-xs text-muted underline underline-offset-2 transition hover:text-foreground"
-          >
-            Sign out
-          </button>
         </>
+      )}
+
+      {/* Social proof stays visible even before signing in. */}
+      <SupporterWall handle={creator.handle} />
+
+      {ua && (
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="mx-auto min-h-[44px] px-4 text-xs text-muted underline underline-offset-2 transition hover:text-foreground"
+        >
+          Sign out
+        </button>
       )}
 
       {sent && toastVisible && (

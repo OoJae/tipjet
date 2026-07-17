@@ -5,6 +5,16 @@ export interface Creator {
   displayName: string;
   receivingAddress: string; // 0x… on Arbitrum (their Magic/UA address or any wallet)
   createdAt: number;
+  goalUsd?: number; // optional tip goal in USD
+  goalLabel?: string; // what the goal is for, ≤40 chars
+}
+
+/** A note a fan leaves with a tip. `at` is epoch ms. */
+export interface TipNote {
+  name: string;
+  message: string;
+  amountUsd: number;
+  at: number;
 }
 
 export function normalizeHandle(raw: string): string {
@@ -48,5 +58,26 @@ export async function claimHandle(input: {
   const body = await res.json().catch(() => ({}));
   if (res.status === 409) throw new Error("That handle is already taken.");
   if (!res.ok) throw new Error(body?.error ?? `Could not claim handle (${res.status})`);
+  return body;
+}
+
+export async function setCreatorGoal(input: {
+  handle: string;
+  receivingAddress: string;
+  goalUsd: number;
+  goalLabel?: string;
+}): Promise<Creator> {
+  const res = await fetch("/api/creators/goal", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 403 || res.status === 404) {
+    throw new Error("This handle isn't linked to your account.");
+  }
+  if (!res.ok) {
+    throw new Error(body?.error ?? `Could not save your goal (${res.status})`);
+  }
   return body;
 }

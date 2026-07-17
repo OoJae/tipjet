@@ -9,7 +9,13 @@ import {
   getUnifiedBalance,
 } from "@/lib/universalAccount";
 import { sendUsdcOnArbitrum } from "@/lib/send";
-import { normalizeHandle, isValidHandle } from "@/lib/creators";
+import {
+  normalizeHandle,
+  isValidHandle,
+  fetchCreator,
+  setCreatorGoal,
+  type TipNote,
+} from "@/lib/creators";
 import ShareCard from "./ShareCard";
 import TipFeed from "./TipFeed";
 
@@ -21,6 +27,16 @@ const EMAIL_RE = /^\S+@\S+\.\S+$/;
 const HANDLE_KEY = "tipjet.handle";
 const OUTAGE_MESSAGE =
   "We couldn't move your balance just now — please try again in a few minutes.";
+
+function relativeTime(at: number): string {
+  const seconds = Math.max(0, Math.floor((Date.now() - at) / 1000));
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
 
 export default function Dashboard() {
   const [phase, setPhase] = useState<Phase>("checking");
@@ -39,6 +55,17 @@ export default function Dashboard() {
   // Handle / share link
   const [handle, setHandle] = useState<string | null>(null);
   const [handleInput, setHandleInput] = useState("");
+
+  // Notes from fans
+  const [notes, setNotes] = useState<TipNote[]>([]);
+
+  // Tip goal
+  const [goalAmount, setGoalAmount] = useState("");
+  const [goalLabelInput, setGoalLabelInput] = useState("");
+  const [goalSaving, setGoalSaving] = useState(false);
+  const [goalSaved, setGoalSaved] = useState(false);
+  const [goalError, setGoalError] = useState<string | null>(null);
+  const goalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Withdraw
   const [dest, setDest] = useState("");
@@ -100,6 +127,55 @@ export default function Dashboard() {
     };
   }, [ready]);
 
+  // Notes from fans: load on mount + 30s poll while a handle is set.
+  useEffect(() => {
+    if (phase !== "ready" || !handle) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/tips?handle=${encodeURIComponent(handle)}`);
+        if (!res.ok) return;
+        const body = (await res.json()) as { notes?: TipNote[] };
+        if (!cancelled && Array.isArray(body.notes)) setNotes(body.notes);
+      } catch {
+        /* keep the last loaded notes */
+      }
+    };
+    void load();
+    const id = setInterval(() => void load(), 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [phase, handle]);
+
+  // Prefill the goal form from the creator record when it belongs to this account.
+  useEffect(() => {
+    if (phase !== "ready" || !handle || !address) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const creator = await fetchCreator(handle);
+        if (cancelled || !creator) return;
+        if (creator.receivingAddress.toLowerCase() !== address.toLowerCase()) return;
+        const { goalUsd, goalLabel } = creator;
+        if (goalUsd) setGoalAmount((cur) => cur || String(goalUsd));
+        if (goalLabel) setGoalLabelInput((cur) => cur || goalLabel);
+      } catch {
+        /* prefill is best-effort */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, handle, address]);
+
+  useEffect(() => {
+    return () => {
+      if (goalTimer.current) clearTimeout(goalTimer.current);
+    };
+  }, []);
+
   const handleLogin = async () => {
     if (loggingIn || !EMAIL_RE.test(email.trim())) return;
     setLoggingIn(true);
@@ -128,6 +204,11 @@ export default function Dashboard() {
     setAmount("");
     setSendDone(false);
     setSendError(null);
+    setNotes([]);
+    setGoalAmount("");
+    setGoalLabelInput("");
+    setGoalSaved(false);
+    setGoalError(null);
     setPhase("login");
   };
 
@@ -140,6 +221,43 @@ export default function Dashboard() {
       localStorage.setItem(HANDLE_KEY, normalized);
     } catch {
       /* non-fatal */
+    }
+  };
+
+  const saveGoal = async () => {
+    if (!handle || goalSaving) return;
+    const trimmed = goalAmount.trim();
+    const parsed = trimmed === "" ? 0 : Number(trimmed);
+    const valid =
+      Number.isFinite(parsed) &&
+      (parsed === 0 || (parsed >= 1 && parsed <= 100000));
+    if (!valid) {
+      setGoalSaved(false);
+      setGoalError("Enter a goal between $1 and $100,000 (or $0 to clear it).");
+      return;
+    }
+    setGoalSaving(true);
+    setGoalSaved(false);
+    setGoalError(null);
+    try {
+      const label = goalLabelInput.trim();
+      await setCreatorGoal({
+        handle,
+        receivingAddress: address,
+        goalUsd: parsed,
+        ...(label ? { goalLabel: label } : {}),
+      });
+      setGoalSaved(true);
+      if (goalTimer.current) clearTimeout(goalTimer.current);
+      goalTimer.current = setTimeout(() => setGoalSaved(false), 2500);
+    } catch (e) {
+      setGoalError(
+        e instanceof Error
+          ? e.message
+          : "Could not save your goal — please try again.",
+      );
+    } finally {
+      setGoalSaving(false);
     }
   };
 
@@ -302,10 +420,72 @@ export default function Dashboard() {
             {handle ? (
               <div>
                 <ShareCard handle={handle} />
+
+                {/* Tip goal */}
+                <section className="mt-3 rounded-2xl border border-card-border bg-card p-5">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                    Tip goal
+                  </h2>
+                  <p className="mt-2 text-sm text-muted">
+                    Give fans something to rally behind. Save $0 to remove it.
+                  </p>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void saveGoal();
+                    }}
+                    className="mt-3 space-y-2"
+                  >
+                    <div className="flex gap-2">
+                      <div className="flex w-28 shrink-0 items-center rounded-xl border border-card-border bg-background px-3 focus-within:border-brand">
+                        <span className="font-semibold text-muted">$</span>
+                        <input
+                          value={goalAmount}
+                          onChange={(e) => setGoalAmount(e.target.value)}
+                          placeholder="500"
+                          inputMode="decimal"
+                          aria-label="Goal amount in dollars"
+                          className="min-h-11 w-full bg-transparent px-1.5 py-2 font-semibold tabular-nums outline-none placeholder:font-normal placeholder:text-muted/60"
+                        />
+                      </div>
+                      <input
+                        value={goalLabelInput}
+                        onChange={(e) => setGoalLabelInput(e.target.value)}
+                        placeholder="New microphone"
+                        maxLength={40}
+                        aria-label="What the goal is for"
+                        className="min-h-11 min-w-0 flex-1 rounded-xl border border-card-border bg-background px-3 py-2 outline-none placeholder:text-muted/60 focus:border-brand"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={goalSaving}
+                      className="min-h-11 w-full rounded-xl bg-brand py-2 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
+                    >
+                      {goalSaving ? "Saving…" : "Save goal"}
+                    </button>
+                  </form>
+                  {goalSaved && (
+                    <p className="mt-2 animate-pop text-sm font-semibold text-money">
+                      Saved ✓
+                    </p>
+                  )}
+                  {goalError && (
+                    <p className="mt-2 text-sm font-semibold text-red-500">
+                      {goalError}
+                    </p>
+                  )}
+                </section>
+
                 <button
                   type="button"
                   onClick={() => {
                     setHandle(null);
+                    setNotes([]);
+                    setGoalAmount("");
+                    setGoalLabelInput("");
+                    setGoalSaved(false);
+                    setGoalError(null);
                     try {
                       localStorage.removeItem(HANDLE_KEY);
                     } catch {
@@ -366,6 +546,44 @@ export default function Dashboard() {
 
             {/* Live tips */}
             <TipFeed address={address} />
+
+            {/* Notes from fans */}
+            <section className="rounded-2xl border border-card-border bg-card p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                Notes from fans
+              </h2>
+              {handle && notes.length > 0 ? (
+                <ul className="mt-3 space-y-3">
+                  {notes.map((note, i) => (
+                    <li
+                      key={`${note.at}-${i}`}
+                      className="border-b border-card-border pb-3 last:border-b-0 last:pb-0"
+                    >
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="min-w-0 truncate font-semibold">
+                          {note.name}
+                        </span>
+                        <span className="shrink-0 font-semibold tabular-nums text-money">
+                          ${note.amountUsd.toFixed(2)}
+                        </span>
+                      </div>
+                      {note.message && (
+                        <p className="mt-1 break-words text-sm italic">
+                          &ldquo;{note.message}&rdquo;
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-muted">
+                        {relativeTime(note.at)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-muted">
+                  Notes fans leave with their tips will show up here.
+                </p>
+              )}
+            </section>
 
             {/* Withdraw */}
             <section className="rounded-2xl border border-card-border bg-card p-5">

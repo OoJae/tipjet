@@ -4,9 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import type { UniversalAccount } from "@particle-network/universal-account-sdk";
 import type { Creator } from "@/lib/creators";
 import { sendUsdcOnArbitrum } from "@/lib/send";
+import { ARBITRUM_CHAIN_ID, chainName } from "@/lib/tokens";
+import { postTipNote } from "@/lib/tips";
 
 const PRESETS = [1, 5, 10];
 const MIN_TIP = 0.5;
+const MAX_TIP = 10000;
+const NAME_MAX = 24;
+const MESSAGE_MAX = 140;
+const FAN_NAME_KEY = "tipjet.fanName";
 const SENDING_LINES = ["Sending your tip…", "Almost there…"];
 
 type Phase = "idle" | "confirming" | "sending" | "success" | "error";
@@ -15,23 +21,43 @@ export default function TipWidget({
   creator,
   ua,
   balanceUsd,
+  initialAmount,
   onSent,
   onBalanceRefresh,
 }: {
   creator: Creator;
   ua: UniversalAccount;
   balanceUsd: number;
+  initialAmount?: number;
   onSent: (result: {
     transactionId: string;
     activityUrl: string;
     amountUsd: number;
+    fromChains: number[];
   }) => void;
   onBalanceRefresh: () => void;
 }) {
+  // A valid ?tip= prefill preselects the amount (preset if it matches one).
+  const prefill =
+    initialAmount !== undefined &&
+    Number.isFinite(initialAmount) &&
+    initialAmount >= MIN_TIP &&
+    initialAmount <= MAX_TIP
+      ? initialAmount
+      : null;
+  const prefillCustom = prefill !== null && !PRESETS.includes(prefill);
+
   const [phase, setPhase] = useState<Phase>("idle");
-  const [preset, setPreset] = useState<number | null>(5);
-  const [customMode, setCustomMode] = useState(false);
-  const [customValue, setCustomValue] = useState("");
+  const [preset, setPreset] = useState<number | null>(
+    prefillCustom ? null : (prefill ?? 5),
+  );
+  const [customMode, setCustomMode] = useState(prefillCustom);
+  const [customValue, setCustomValue] = useState(
+    prefillCustom ? String(prefill) : "",
+  );
+  const [fanName, setFanName] = useState("");
+  const [fanMessage, setFanMessage] = useState("");
+  const [sentFromChains, setSentFromChains] = useState<number[]>([]);
   const [lineIdx, setLineIdx] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -46,6 +72,16 @@ export default function TipWidget({
   const tooSmall = amount !== null && amount < MIN_TIP;
   const tooBig = amount !== null && amount > balanceUsd;
   const canContinue = amount !== null && !tooSmall && !tooBig;
+
+  // Remember the fan's name across tips (saved back on send).
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(FAN_NAME_KEY);
+      if (stored) setFanName(stored.slice(0, NAME_MAX));
+    } catch {
+      // storage unavailable — start blank
+    }
+  }, []);
 
   // Rotate the reassurance lines while a send is in flight.
   useEffect(() => {
@@ -87,7 +123,21 @@ export default function TipWidget({
         creator.receivingAddress,
         amount.toString(),
       );
+      setSentFromChains(result.fromChains);
       setPhase("success");
+
+      // Best-effort supporter-wall note; the tip has already settled.
+      const name = fanName.trim().slice(0, NAME_MAX);
+      const message = fanMessage.trim().slice(0, MESSAGE_MAX);
+      if (name) {
+        try {
+          window.localStorage.setItem(FAN_NAME_KEY, name);
+        } catch {
+          // storage unavailable — skip remembering
+        }
+      }
+      void postTipNote({ handle: creator.handle, name, message, amountUsd: amount });
+
       onSent({ ...result, amountUsd: amount });
       onBalanceRefresh();
     } catch (e) {
@@ -110,9 +160,12 @@ export default function TipWidget({
     setCustomMode(false);
     setCustomValue("");
     setPreset(5);
+    setFanMessage("");
+    setSentFromChains([]);
   }
 
   const fmt = (n: number) => `$${n.toFixed(2)}`;
+  const sourceChainId = sentFromChains.find((id) => id !== ARBITRUM_CHAIN_ID);
 
   return (
     <div className="flex flex-col gap-4 rounded-3xl border border-card-border bg-card p-6">
@@ -190,6 +243,30 @@ export default function TipWidget({
           <p className="text-center text-lg font-semibold">
             Send {fmt(amount ?? 0)} to {creator.displayName}?
           </p>
+          <div className="flex flex-col gap-2">
+            <input
+              type="text"
+              value={fanName}
+              onChange={(e) => setFanName(e.target.value.slice(0, NAME_MAX))}
+              placeholder="Your name (optional)"
+              maxLength={NAME_MAX}
+              aria-label="Your name"
+              className="w-full rounded-xl border border-card-border bg-background px-4 py-3 outline-none transition focus:ring-2 focus:ring-brand"
+            />
+            <textarea
+              value={fanMessage}
+              onChange={(e) =>
+                setFanMessage(
+                  e.target.value.replace(/\n/g, " ").slice(0, MESSAGE_MAX),
+                )
+              }
+              placeholder="Say something nice…"
+              maxLength={MESSAGE_MAX}
+              rows={fanMessage.length > 40 ? 2 : 1}
+              aria-label="Leave a message with your tip"
+              className="w-full resize-none rounded-xl border border-card-border bg-background px-4 py-3 outline-none transition focus:ring-2 focus:ring-brand"
+            />
+          </div>
           <div className="flex gap-3">
             <button
               type="button"
@@ -230,6 +307,25 @@ export default function TipWidget({
           <p className="text-muted">
             {creator.displayName} just got {fmt(amount ?? 0)}
           </p>
+          <div className="mt-2 w-full rounded-xl border border-card-border bg-background px-4 py-3 text-center text-sm text-muted">
+            {sourceChainId !== undefined ? (
+              <>
+                You paid from{" "}
+                <span className="font-semibold text-foreground">
+                  {chainName(sourceChainId)}
+                </span>{" "}
+                → {creator.displayName} received dollars on{" "}
+                <span className="font-semibold text-foreground">Arbitrum</span>{" "}
+                · same account, no bridge.
+              </>
+            ) : (
+              <>
+                Paid from your balance → settled on{" "}
+                <span className="font-semibold text-foreground">Arbitrum</span>{" "}
+                · same account, no bridge.
+              </>
+            )}
+          </div>
           <button
             type="button"
             onClick={resetToIdle}
