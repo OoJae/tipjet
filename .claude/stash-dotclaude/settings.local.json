@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mv /Users/oluwademilade/Desktop/TipJet/*.md /private/tmp/claude-501/-Users-oluwademilade-Desktop-TipJet/2b566c21-94a3-4238-ad76-1b4d68a4a0af/scratchpad/specfiles/)",
+      "Bash(rtk ls *)",
+      "Bash(S=\"/private/tmp/claude-501/-Users-oluwademilade-Desktop-TipJet/2b566c21-94a3-4238-ad76-1b4d68a4a0af/scratchpad\" *)"
+    ],
+    "additionalDirectories": [
+      "/Users/oluwademilade/Desktop/TipJet/.claude"
+    ]
+  }
+}
