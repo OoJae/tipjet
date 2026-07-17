@@ -38,13 +38,20 @@ export default async function Image() {
             Get tipped in dollars. From anyone. Instantly.
           </span>
         </div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <span style={{ fontSize: 30, color: "#a1a1aa" }}>
             Tips land as real dollars · Settled on Arbitrum
           </span>
-          <span style={{ fontSize: 30, fontWeight: 700, color: "#10b981" }}>
-            ✓
-          </span>
+          <svg width="30" height="30" viewBox="0 0 24 24">
+            <path
+              d="M4 12.5 L9.5 18 L20 6.5"
+              stroke="#10b981"
+              strokeWidth="3.4"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </div>
       </div>
     ),

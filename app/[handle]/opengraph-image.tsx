@@ -12,12 +12,22 @@ const MUTED = "#a1a1aa";
 const MONEY = "#10b981";
 
 function trustRow() {
+  // Checkmark drawn as SVG — text glyphs outside the base font 404 in satori.
   return (
-    <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
       <span style={{ fontSize: 30, color: MUTED }}>
         Tips land as real dollars · Settled on Arbitrum
       </span>
-      <span style={{ fontSize: 30, fontWeight: 700, color: MONEY }}>✓</span>
+      <svg width="30" height="30" viewBox="0 0 24 24">
+        <path
+          d="M4 12.5 L9.5 18 L20 6.5"
+          stroke={MONEY}
+          strokeWidth="3.4"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
     </div>
   );
 }
