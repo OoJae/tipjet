@@ -10,6 +10,8 @@ import {
   isValidHandle,
 } from "@/lib/creators";
 import ShareCard from "./ShareCard";
+import Wordmark from "@/components/brand/Wordmark";
+import PlaneMark from "@/components/brand/PlaneMark";
 
 type Step = 1 | 2 | 3 | 4;
 type Availability = "unknown" | "checking" | "available" | "taken";
@@ -118,9 +120,10 @@ export default function ClaimFlow() {
       <div className="mx-auto max-w-md px-4 py-10">
         <Link
           href="/"
-          className="text-sm font-semibold text-muted transition-colors hover:text-foreground"
+          aria-label="TipJet home"
+          className="inline-flex items-center transition-opacity hover:opacity-80"
         >
-          ← Tip<span className="text-brand">Jet</span>
+          <Wordmark size={20} />
         </Link>
 
         {step < 4 && (
@@ -139,7 +142,7 @@ export default function ClaimFlow() {
         {/* Step 1 — handle */}
         {step === 1 && (
           <section className="mt-8">
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="font-display text-3xl font-bold tracking-tight">
               Pick your handle
             </h1>
             <p className="mt-2 text-muted">
@@ -186,7 +189,7 @@ export default function ClaimFlow() {
               type="button"
               onClick={continueFromHandle}
               disabled={!handleValid || busy || availability === "taken"}
-              className="mt-6 min-h-12 w-full rounded-xl bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
+              className="btn-press mt-6 min-h-12 w-full rounded-xl bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
             >
               {busy ? "Checking…" : "Continue"}
             </button>
@@ -196,7 +199,7 @@ export default function ClaimFlow() {
         {/* Step 2 — display name */}
         {step === 2 && (
           <section className="mt-8">
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="font-display text-3xl font-bold tracking-tight">
               What should fans call you?
             </h1>
             <p className="mt-2 text-muted">
@@ -216,7 +219,7 @@ export default function ClaimFlow() {
                 if (displayName.trim()) setStep(3);
               }}
               disabled={!displayName.trim()}
-              className="mt-6 min-h-12 w-full rounded-xl bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
+              className="btn-press mt-6 min-h-12 w-full rounded-xl bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
             >
               Continue
             </button>
@@ -233,7 +236,7 @@ export default function ClaimFlow() {
         {/* Step 3 — email sign-in + claim */}
         {step === 3 && (
           <section className="mt-8">
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="font-display text-3xl font-bold tracking-tight">
               Where your tips land
             </h1>
             <p className="mt-2 text-muted">
@@ -255,7 +258,7 @@ export default function ClaimFlow() {
                   type="button"
                   onClick={claim}
                   disabled={busy}
-                  className="mt-3 min-h-12 w-full rounded-xl bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
+                  className="btn-press mt-3 min-h-12 w-full rounded-xl bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
                 >
                   {busy ? "Setting up…" : `Claim @${handle}`}
                 </button>
@@ -279,7 +282,7 @@ export default function ClaimFlow() {
                 <button
                   type="submit"
                   disabled={!EMAIL_RE.test(email.trim()) || busy}
-                  className="mt-4 min-h-12 w-full rounded-xl bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
+                  className="btn-press mt-4 min-h-12 w-full rounded-xl bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
                 >
                   {busy ? "Setting up…" : "Continue with email"}
                 </button>
@@ -308,11 +311,9 @@ export default function ClaimFlow() {
         {step === 4 && claimedHandle && (
           <section className="mt-10 animate-pop">
             <div className="text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-money/10 text-3xl">
-                🎉
-              </div>
-              <h1 className="mt-4 text-4xl font-bold tracking-tight">
-                You&apos;re live!
+              <PlaneMark size={48} detailed className="mx-auto mb-3" />
+              <h1 className="font-display text-4xl font-bold tracking-tight">
+                You&apos;re live! 🎉
               </h1>
               <p className="mt-2 text-muted">
                 Share your link and start getting tipped in dollars.
@@ -323,7 +324,7 @@ export default function ClaimFlow() {
             </div>
             <Link
               href="/dashboard"
-              className="mt-4 block min-h-12 w-full rounded-xl bg-brand py-3 text-center font-semibold text-white transition-colors hover:bg-brand-strong"
+              className="btn-press mt-4 block min-h-12 w-full rounded-xl bg-brand py-3 text-center font-semibold text-white transition-colors hover:bg-brand-strong"
             >
               Open your dashboard
             </Link>

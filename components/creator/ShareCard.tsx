@@ -59,7 +59,7 @@ export default function ShareCard({ handle }: { handle: string }) {
 
   return (
     <section className="rounded-2xl border border-card-border bg-card p-5">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+      <h2 className="font-mono text-xs uppercase tracking-[0.08em] text-muted">
         Your tip link
       </h2>
       <p className="mt-2 break-all font-mono text-sm font-medium">
@@ -69,7 +69,7 @@ export default function ShareCard({ handle }: { handle: string }) {
         <button
           type="button"
           onClick={copy}
-          className={`min-h-11 flex-1 rounded-xl py-3 font-semibold text-white transition-colors ${
+          className={`btn-press min-h-11 flex-1 rounded-xl py-3 font-semibold text-white transition-colors ${
             copied ? "bg-money" : "bg-brand hover:bg-brand-strong"
           }`}
         >
