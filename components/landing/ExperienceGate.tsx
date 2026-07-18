@@ -14,6 +14,9 @@ function canRunExperience(): boolean {
   // Small screens keep the (already composed) static experience — the flight
   // choreography is sized for desktop frames, and phone GPUs earn nothing here.
   if (window.matchMedia("(max-width: 767px)").matches) return false;
+  // Touch / coarse-pointer devices (incl. landscape phones & tablets ≥768px)
+  // get the static page — they're the GPUs the width check means to exclude.
+  if (window.matchMedia("(pointer: coarse), (hover: none)").matches) return false;
   try {
     const gl = document.createElement("canvas").getContext("webgl2");
     if (!gl) return false;

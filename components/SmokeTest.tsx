@@ -29,7 +29,6 @@ export default function SmokeTest() {
 
   const push = (msg: string) => {
     const t = new Date().toLocaleTimeString();
-    console.log(`[stage0] ${msg}`);
     setLog((l) => [...l, { t, msg }]);
   };
 
@@ -98,11 +97,11 @@ export default function SmokeTest() {
     setBusy(true);
     setLastTx(undefined);
     try {
-      const receiver = process.env.NEXT_PUBLIC_TEST_RECEIVER;
+      // Self-send: the smoke test routes 0.1 USDC to the logged-in visitor's
+      // OWN account, so a stranger poking /dev can never fund someone else.
+      const receiver = eoa;
       if (!receiver || !isAddress(receiver)) {
-        throw new Error(
-          "NEXT_PUBLIC_TEST_RECEIVER is not a valid address — set it in .env.local to a wallet you control.",
-        );
+        throw new Error("No account address — log in first.");
       }
       if (!usd || usd <= 0) {
         throw new Error(
@@ -161,7 +160,7 @@ export default function SmokeTest() {
       </header>
 
       {!eoa ? (
-        <div className="flex flex-col gap-3 rounded-2xl border border-neutral-200 p-5 dark:border-neutral-800">
+        <div className="flex flex-col gap-3 rounded-2xl border border-neutral-200 p-5">
           <label className="text-sm font-medium" htmlFor="email">
             Email
           </label>
@@ -173,7 +172,7 @@ export default function SmokeTest() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@email.com"
-            className="rounded-lg border border-neutral-300 px-3 py-2 outline-none focus:ring-2 focus:ring-violet-500 dark:border-neutral-700 dark:bg-neutral-900"
+            className="rounded-lg border border-neutral-300 px-3 py-2 outline-none focus:ring-2 focus:ring-violet-500"
           />
           <button
             disabled={busy || !email}
@@ -184,7 +183,7 @@ export default function SmokeTest() {
           </button>
         </div>
       ) : (
-        <div className="flex flex-col gap-3 rounded-2xl border border-neutral-200 p-5 dark:border-neutral-800">
+        <div className="flex flex-col gap-3 rounded-2xl border border-neutral-200 p-5">
           <div className="flex items-center justify-between gap-2">
             <span className="truncate text-xs text-neutral-500" title={eoa}>
               {eoa}
@@ -204,7 +203,7 @@ export default function SmokeTest() {
             <button
               onClick={handleRefresh}
               disabled={busy}
-              className="rounded-full border border-neutral-300 px-3 py-1 text-xs text-neutral-500 disabled:opacity-40 dark:border-neutral-700"
+              className="rounded-full border border-neutral-300 px-3 py-1 text-xs text-neutral-500 disabled:opacity-40"
             >
               ↻ refresh
             </button>

@@ -9,7 +9,7 @@
   --foreground: #14120e; /* warm ink */
   --brand: #7c3aed; /* violet-600 — the fold */
   --brand-strong: #6d28d9; /* violet-700 */
-  --money: #0e9f6e; /* engraved-bill green */
+  --money: #0a7d57; /* engraved-bill green — AA (~4.7:1) as small text on paper */
   --card: #ffffff;
   --card-border: #e7e2d8; /* warm paper edge */
   --muted: #6f6a60; /* warm gray ink */
@@ -44,7 +44,7 @@ body {
 .landing-root {
   --paper: #f7f5f0;
   --ink: #14120e;
-  --money-print: #0e9f6e;
+  --money-print: #0a7d57; /* AA as small text on paper (was #0e9f6e) */
   background: var(--paper);
   color: var(--ink);
 }

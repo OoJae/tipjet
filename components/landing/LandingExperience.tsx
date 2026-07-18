@@ -67,6 +67,7 @@ export default function LandingExperience() {
     // Master scrubbed timeline over the whole story
     // ------------------------------------------------------------------
     if (story) {
+     try {
       // Initial hidden states (runtime only — markup stays fully visible)
       gsap.set(
         [
@@ -230,6 +231,13 @@ export default function LandingExperience() {
           0.92
         );
       }
+     } catch {
+       // Self-heal: if timeline setup ever throws, never leave content (incl.
+       // focusable links/CTA) stuck at visibility:hidden — reveal everything.
+       gsap.set("#landing-story [style]", {
+         clearProps: "opacity,visibility,transform",
+       });
+     }
     } else {
       // Interim fallback (story DOM not mounted yet): still fly the plane on
       // whole-page scroll so the scene never sits frozen.
