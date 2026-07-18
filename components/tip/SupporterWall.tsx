@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import PlaneMark from "@/components/brand/PlaneMark";
 import { fetchTipNotes, type TipNote } from "@/lib/tips";
 
 const POLL_MS = 20_000;
@@ -71,7 +72,8 @@ export default function SupporterWall({ handle }: { handle: string }) {
 
   return (
     <section className="rounded-2xl border border-card-border bg-card p-5">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+      <h2 className="inline-flex items-center text-sm font-semibold uppercase tracking-wide text-muted">
+        <PlaneMark size={14} className="inline -mt-0.5 mr-1" />
         Recent supporters ❤️
       </h2>
       {notes === undefined ? (

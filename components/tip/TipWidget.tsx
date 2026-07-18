@@ -179,7 +179,7 @@ export default function TipWidget({
                   key={n}
                   type="button"
                   onClick={() => pickPreset(n)}
-                  className={`rounded-xl py-3 text-lg font-semibold tabular-nums transition ${
+                  className={`btn-press rounded-xl py-3 text-lg font-semibold tabular-nums transition ${
                     active
                       ? "bg-brand text-white"
                       : "border border-card-border hover:border-brand"
@@ -192,7 +192,7 @@ export default function TipWidget({
             <button
               type="button"
               onClick={pickCustom}
-              className={`rounded-xl py-3 text-sm font-semibold transition ${
+              className={`btn-press rounded-xl py-3 text-sm font-semibold transition ${
                 customMode
                   ? "bg-brand text-white"
                   : "border border-card-border hover:border-brand"
@@ -231,7 +231,7 @@ export default function TipWidget({
             type="button"
             disabled={!canContinue}
             onClick={() => setPhase("confirming")}
-            className="rounded-xl bg-brand py-3 text-lg font-semibold text-white transition hover:bg-brand-strong disabled:opacity-40"
+            className="btn-press rounded-xl bg-brand py-3 text-lg font-semibold text-white transition hover:bg-brand-strong disabled:opacity-40"
           >
             {amount !== null && canContinue ? `Tip ${fmt(amount)}` : "Tip"}
           </button>
@@ -278,7 +278,7 @@ export default function TipWidget({
             <button
               type="button"
               onClick={handleConfirm}
-              className="flex-1 rounded-xl bg-brand py-3 font-semibold text-white transition hover:bg-brand-strong"
+              className="btn-press flex-1 rounded-xl bg-brand py-3 font-semibold text-white transition hover:bg-brand-strong"
             >
               Confirm
             </button>
@@ -303,7 +303,7 @@ export default function TipWidget({
 
       {phase === "success" && (
         <div className="animate-pop flex flex-col items-center gap-2 py-4">
-          <p className="text-4xl font-bold">Sent! ❤️</p>
+          <p className="font-display text-3xl font-bold">Sent! ❤️</p>
           <p className="text-muted">
             {creator.displayName} just got {fmt(amount ?? 0)}
           </p>
@@ -329,7 +329,7 @@ export default function TipWidget({
           <button
             type="button"
             onClick={resetToIdle}
-            className="mt-2 min-h-[44px] rounded-full px-5 font-semibold text-brand transition hover:bg-background"
+            className="btn-press mt-2 min-h-[44px] rounded-full px-5 font-semibold text-brand transition hover:bg-background"
           >
             Send another tip
           </button>
@@ -342,7 +342,7 @@ export default function TipWidget({
           <button
             type="button"
             onClick={() => setPhase("confirming")}
-            className="w-full rounded-xl bg-brand py-3 font-semibold text-white transition hover:bg-brand-strong"
+            className="btn-press w-full rounded-xl bg-brand py-3 font-semibold text-white transition hover:bg-brand-strong"
           >
             Try again
           </button>

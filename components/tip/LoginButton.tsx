@@ -51,7 +51,7 @@ export default function LoginButton({
       <button
         type="submit"
         disabled={!canSubmit}
-        className="rounded-xl bg-brand py-3 font-semibold text-white transition hover:bg-brand-strong disabled:opacity-40"
+        className="btn-press rounded-xl bg-brand py-3 font-semibold text-white transition hover:bg-brand-strong disabled:opacity-40"
       >
         {busy ? "Check your inbox…" : "Continue with email"}
       </button>

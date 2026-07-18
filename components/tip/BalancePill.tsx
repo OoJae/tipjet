@@ -37,7 +37,7 @@ export default function BalancePill({
   return (
     <div className="flex flex-col items-center gap-1.5">
       <div className="inline-flex items-center gap-3 rounded-full border border-card-border bg-card py-2 pl-5 pr-2">
-        <span className="text-2xl font-bold tabular-nums">
+        <span className="font-display text-2xl font-bold">
           {usd === undefined ? (
             <span className="animate-pulse text-muted">$ —</span>
           ) : (

@@ -7,6 +7,8 @@ import { fetchCreator, normalizeHandle, type Creator } from "@/lib/creators";
 import { isLoggedIn, getAddress, logout } from "@/lib/magic";
 import { makeUniversalAccount, getUnifiedBalance } from "@/lib/universalAccount";
 import { watchForSettlement } from "@/lib/settlement";
+import PlaneMark from "@/components/brand/PlaneMark";
+import Wordmark from "@/components/brand/Wordmark";
 import LoginButton from "@/components/tip/LoginButton";
 import BalancePill from "@/components/tip/BalancePill";
 import TipWidget from "@/components/tip/TipWidget";
@@ -163,10 +165,8 @@ export default function TipPage({ handle }: { handle: string }) {
   if (creator === null) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-brand to-brand-strong text-3xl font-bold text-white">
-          ?
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight">
+        <PlaneMark size={64} className="mx-auto -rotate-12" />
+        <h1 className="font-display text-2xl font-bold tracking-tight">
           This TipJet doesn&apos;t exist yet
         </h1>
         <p className="text-muted">
@@ -175,7 +175,7 @@ export default function TipPage({ handle }: { handle: string }) {
         </p>
         <Link
           href="/"
-          className="mt-2 rounded-full bg-brand px-6 py-3 font-semibold text-white transition hover:bg-brand-strong"
+          className="btn-press mt-2 rounded-full bg-brand px-6 py-3 font-semibold text-white transition hover:bg-brand-strong"
         >
           Take me home
         </Link>
@@ -186,13 +186,21 @@ export default function TipPage({ handle }: { handle: string }) {
   // ── The tip page ───────────────────────────────────────────────────────
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-10">
+      <Link
+        href="/"
+        aria-label="TipJet home"
+        className="self-start opacity-80 transition hover:opacity-100"
+      >
+        <Wordmark size={20} />
+      </Link>
+
       <header className="flex flex-col items-center gap-3 text-center">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-brand to-brand-strong text-3xl font-bold text-white">
           {creator.displayName.charAt(0).toUpperCase()}
         </div>
         <div>
           <p className="text-sm text-muted">@{creator.handle}</p>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="font-display text-2xl font-bold tracking-tight">
             {creator.displayName}
           </h1>
         </div>
@@ -226,13 +234,14 @@ export default function TipPage({ handle }: { handle: string }) {
               <button
                 type="button"
                 onClick={() => refreshBalance(ua)}
-                className="mt-4 w-full rounded-xl bg-brand py-3 font-semibold text-white transition hover:bg-brand-strong"
+                className="btn-press mt-4 w-full rounded-xl bg-brand py-3 font-semibold text-white transition hover:bg-brand-strong"
               >
                 Try again
               </button>
             </div>
           ) : balanceUsd === 0 ? (
             <div className="rounded-3xl border border-card-border bg-card p-6 text-center">
+              <PlaneMark size={40} className="mx-auto mb-2 opacity-80" />
               <p className="font-semibold">Your balance is empty</p>
               <p className="mt-1 text-sm text-muted">
                 Add money once and it shows up here as one number — then tipping
@@ -241,7 +250,7 @@ export default function TipPage({ handle }: { handle: string }) {
               <button
                 type="button"
                 onClick={() => setShowTopUp((s) => !s)}
-                className="mt-4 w-full rounded-xl bg-brand py-3 font-semibold text-white transition hover:bg-brand-strong"
+                className="btn-press mt-4 w-full rounded-xl bg-brand py-3 font-semibold text-white transition hover:bg-brand-strong"
               >
                 {showTopUp ? "Hide" : "Add money"}
               </button>
