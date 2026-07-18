@@ -46,6 +46,72 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+/* ── Landing "paper world" (scoped — additive only; product tokens frozen) ──
+   The marketing route group wraps content in .landing-root: a warm bill-paper
+   world with ink text. Product routes never see these values. */
+.landing-root {
+  --paper: #f7f5f0;
+  --ink: #14120e;
+  --money-print: #0e9f6e;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* Display serif (Fraunces variable) — headlines only, on landing surfaces */
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-variation-settings: "SOFT" 40, "WONK" 1;
+  font-optical-sizing: auto;
+}
+
+/* Paper grain film (SVG turbulence, ~4%) — apply to a fixed overlay div */
+.paper-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  opacity: 0.04;
+}
+
+/* Paper-press: buttons press down like a bill smoothed onto a counter */
+.btn-press {
+  transition:
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 0 rgb(20 18 14 / 0.18);
+}
+.btn-press:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 0 rgb(20 18 14 / 0.18);
+}
+.btn-press:active {
+  transform: translateY(1px);
+  box-shadow: 0 0 0 rgb(20 18 14 / 0.18);
+}
+
+/* Marketing route-group enter transition (CSS-only; scoped by template) */
+.marketing-enter {
+  animation: marketing-fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes marketing-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-enter {
+    animation: none;
+  }
+  .btn-press,
+  .btn-press:hover,
+  .btn-press:active {
+    transform: none;
+  }
+}
+
 /* Gentle pop-in used for success moments */
 @keyframes tipjet-pop {
   0% {

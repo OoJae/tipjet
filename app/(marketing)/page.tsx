@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ExperienceGate from "@/components/landing/ExperienceGate";
 
 const STEPS = [
   {
@@ -17,6 +18,8 @@ const STEPS = [
 
 export default function Landing() {
   return (
+    <>
+    <ExperienceGate />
     <main className="relative min-h-screen overflow-hidden bg-background text-foreground">
       {/* Soft violet glow behind the hero */}
       <div
@@ -93,5 +96,6 @@ export default function Landing() {
         </footer>
       </div>
     </main>
+    </>
   );
 }
