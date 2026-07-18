@@ -4,14 +4,15 @@
    Consumer-fintech feel: warm, playful, trustworthy. Violet brand,
    money-green success, generous radii, big friendly type. */
 :root {
-  --background: #fafafa;
-  --foreground: #171717;
-  --brand: #7c3aed; /* violet-600 */
+  /* Paper-world light palette (brand: a dollar folded into a paper dart) */
+  --background: #f7f5f0; /* warm bill-paper */
+  --foreground: #14120e; /* warm ink */
+  --brand: #7c3aed; /* violet-600 — the fold */
   --brand-strong: #6d28d9; /* violet-700 */
-  --money: #059669; /* emerald-600 */
+  --money: #0e9f6e; /* engraved-bill green */
   --card: #ffffff;
-  --card-border: #e5e5e5;
-  --muted: #737373;
+  --card-border: #e7e2d8; /* warm paper edge */
+  --muted: #6f6a60; /* warm gray ink */
 }
 
 @theme inline {
