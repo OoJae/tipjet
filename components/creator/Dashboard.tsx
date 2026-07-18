@@ -24,6 +24,8 @@ import {
 } from "@/lib/creators";
 import ShareCard from "./ShareCard";
 import TipFeed from "./TipFeed";
+import Wordmark from "@/components/brand/Wordmark";
+import PlaneMark from "@/components/brand/PlaneMark";
 
 type Phase = "checking" | "login" | "ready";
 
@@ -320,9 +322,9 @@ export default function Dashboard() {
         <header className="flex items-center justify-between">
           <Link
             href="/"
-            className="text-xl font-bold tracking-tight transition-opacity hover:opacity-80"
+            className="transition-opacity hover:opacity-80"
           >
-            Tip<span className="text-brand">Jet</span>
+            <Wordmark size={22} />
           </Link>
           {phase === "ready" && (
             <button
@@ -343,7 +345,7 @@ export default function Dashboard() {
 
         {phase === "login" && (
           <section className="mt-12">
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="font-display text-3xl font-bold tracking-tight">
               Your dashboard
             </h1>
             <p className="mt-2 text-muted">
@@ -367,7 +369,7 @@ export default function Dashboard() {
               <button
                 type="submit"
                 disabled={!EMAIL_RE.test(email.trim()) || loggingIn}
-                className="mt-4 min-h-12 w-full rounded-xl bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
+                className="btn-press mt-4 min-h-12 w-full rounded-xl bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
               >
                 {loggingIn ? "Signing in…" : "Continue with email"}
               </button>
@@ -394,7 +396,7 @@ export default function Dashboard() {
             {/* Balance */}
             <section className="rounded-3xl border border-card-border bg-card p-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                <h2 className="font-mono text-xs uppercase tracking-[0.08em] text-muted">
                   Your balance
                 </h2>
                 <button
@@ -408,7 +410,7 @@ export default function Dashboard() {
                 </button>
               </div>
               <p
-                className={`mt-2 text-5xl font-bold tabular-nums tracking-tight ${
+                className={`font-display mt-2 text-5xl font-bold tabular-nums tracking-tight ${
                   balanceLoading && balance === null ? "animate-pulse text-muted" : ""
                 }`}
               >
@@ -431,7 +433,7 @@ export default function Dashboard() {
 
                 {/* Tip goal */}
                 <section className="mt-3 rounded-2xl border border-card-border bg-card p-5">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                  <h2 className="font-mono text-xs uppercase tracking-[0.08em] text-muted">
                     Tip goal
                   </h2>
                   <p className="mt-2 text-sm text-muted">
@@ -468,7 +470,7 @@ export default function Dashboard() {
                     <button
                       type="submit"
                       disabled={goalSaving}
-                      className="min-h-11 w-full rounded-xl bg-brand py-2 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
+                      className="btn-press min-h-11 w-full rounded-xl bg-brand py-2 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
                     >
                       {goalSaving ? "Saving…" : "Save goal"}
                     </button>
@@ -507,7 +509,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <section className="rounded-2xl border border-card-border bg-card p-5">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                <h2 className="font-mono text-xs uppercase tracking-[0.08em] text-muted">
                   Your tip link
                 </h2>
                 <p className="mt-2 text-sm text-muted">
@@ -557,7 +559,7 @@ export default function Dashboard() {
 
             {/* Notes from fans */}
             <section className="rounded-2xl border border-card-border bg-card p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+              <h2 className="font-mono text-xs uppercase tracking-[0.08em] text-muted">
                 Notes from fans
               </h2>
               {handle && notes.length > 0 ? (
@@ -587,15 +589,18 @@ export default function Dashboard() {
                   ))}
                 </ul>
               ) : (
-                <p className="mt-2 text-sm text-muted">
-                  Notes fans leave with their tips will show up here.
-                </p>
+                <div className="mt-2">
+                  <PlaneMark size={20} className="mb-2 opacity-70" />
+                  <p className="text-sm text-muted">
+                    Notes fans leave with their tips will show up here.
+                  </p>
+                </div>
               )}
             </section>
 
             {/* Withdraw */}
             <section className="rounded-2xl border border-card-border bg-card p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+              <h2 className="font-mono text-xs uppercase tracking-[0.08em] text-muted">
                 Withdraw
               </h2>
               <p className="mt-2 text-sm text-muted">
@@ -630,7 +635,7 @@ export default function Dashboard() {
                 <button
                   type="submit"
                   disabled={!canWithdraw}
-                  className="min-h-12 w-full rounded-xl bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
+                  className="btn-press min-h-12 w-full rounded-xl bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-strong disabled:opacity-40"
                 >
                   {sending ? "Sending…" : "Withdraw"}
                 </button>

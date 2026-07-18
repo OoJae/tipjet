@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Contract, EventLog, JsonRpcProvider, formatUnits } from "ethers";
 import { ARBITRUM_RPC_URL, ARBITRUM_USDC } from "@/lib/tokens";
+import PlaneMark from "@/components/brand/PlaneMark";
 
 const TRANSFER_ABI = [
   "event Transfer(address indexed from, address indexed to, uint256 value)",
@@ -117,13 +118,16 @@ export default function TipFeed({ address }: { address: string }) {
 
   return (
     <section className="rounded-2xl border border-card-border bg-card p-5">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+      <h2 className="font-mono text-xs uppercase tracking-[0.08em] text-muted">
         Recent tips
       </h2>
       {tips.length === 0 ? (
-        <p className="mt-4 text-sm text-muted">
-          Tips will appear here the moment they arrive.
-        </p>
+        <div className="mt-4">
+          <PlaneMark size={28} className="mb-2 opacity-70" />
+          <p className="text-sm text-muted">
+            Tips will appear here the moment they arrive.
+          </p>
+        </div>
       ) : (
         <ul className="mt-2 divide-y divide-card-border">
           {tips.map((tip) => (
