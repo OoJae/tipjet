@@ -11,6 +11,9 @@ const LandingExperience = dynamic(() => import("./LandingExperience"), {
 
 function canRunExperience(): boolean {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
+  // Small screens keep the (already composed) static experience — the flight
+  // choreography is sized for desktop frames, and phone GPUs earn nothing here.
+  if (window.matchMedia("(max-width: 767px)").matches) return false;
   try {
     const gl = document.createElement("canvas").getContext("webgl2");
     if (!gl) return false;

@@ -6,17 +6,59 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = "TipJet tip page";
 
-const BG = "#0a0a0a";
-const VIOLET = "#8b5cf6";
-const MUTED = "#a1a1aa";
-const MONEY = "#10b981";
+const PAPER = "#F7F5F0";
+const INK = "#14120E";
+const VIOLET = "#7C3AED";
+const MONEY = "#0E9F6E";
+const MUTED = "rgba(20, 18, 14, 0.6)";
+
+const CARD_STYLE = {
+  position: "relative" as const,
+  width: "100%",
+  height: "100%",
+  display: "flex",
+  flexDirection: "column" as const,
+  justifyContent: "space-between",
+  padding: 72,
+  backgroundColor: PAPER,
+  backgroundImage:
+    "radial-gradient(circle at 82% 8%, rgba(124, 58, 237, 0.08), rgba(247, 245, 240, 0) 55%)",
+  fontFamily: "sans-serif",
+};
+
+/**
+ * The folded-bill dart — exact PlaneMark facet geometry, scaled via viewBox.
+ * Drawn as SVG polygons: text glyphs outside the base font 404 in satori.
+ */
+function dart(px: number, top: number, right: number) {
+  return (
+    <svg
+      width={px}
+      height={px}
+      viewBox="0 0 64 64"
+      style={{ position: "absolute", top, right }}
+    >
+      <polygon points="59,12 29,34 24,51" fill="#0A7C55" />
+      <polygon points="59,12 29,34 38,47" fill={VIOLET} />
+      <polygon points="59,12 5,27 29,34" fill={MONEY} />
+      <line
+        x1="59"
+        y1="12"
+        x2="29"
+        y2="34"
+        stroke="rgba(20, 18, 14, 0.25)"
+        strokeWidth="1"
+      />
+    </svg>
+  );
+}
 
 function trustRow() {
   // Checkmark drawn as SVG — text glyphs outside the base font 404 in satori.
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
       <span style={{ fontSize: 30, color: MUTED }}>
-        Tips land as real dollars · Settled on Arbitrum
+        Real dollars · Settled on Arbitrum
       </span>
       <svg width="30" height="30" viewBox="0 0 24 24">
         <path
@@ -35,20 +77,8 @@ function trustRow() {
 function genericCard() {
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          padding: 72,
-          backgroundColor: BG,
-          backgroundImage:
-            "radial-gradient(circle at 20% 0%, rgba(139, 92, 246, 0.22), rgba(10, 10, 10, 0) 60%)",
-          fontFamily: "sans-serif",
-        }}
-      >
+      <div style={CARD_STYLE}>
+        {dart(280, 44, 64)}
         <div
           style={{
             display: "flex",
@@ -58,12 +88,12 @@ function genericCard() {
             gap: 20,
           }}
         >
-          <div style={{ display: "flex", fontSize: 120, fontWeight: 700 }}>
-            <span style={{ color: "#ffffff" }}>Tip</span>
+          <div style={{ display: "flex", fontSize: 110, fontWeight: 700 }}>
+            <span style={{ color: INK }}>Tip</span>
             <span style={{ color: VIOLET }}>Jet</span>
           </div>
-          <span style={{ fontSize: 44, color: "#e4e4e7" }}>
-            Tip anyone, instantly.
+          <span style={{ fontSize: 44, color: "rgba(20, 18, 14, 0.78)" }}>
+            Tips that fly to you.
           </span>
         </div>
         {trustRow()}
@@ -96,20 +126,8 @@ export default async function Image({
 
     return new ImageResponse(
       (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            padding: 72,
-            backgroundColor: BG,
-            backgroundImage:
-              "radial-gradient(circle at 20% 0%, rgba(139, 92, 246, 0.22), rgba(10, 10, 10, 0) 60%)",
-            fontFamily: "sans-serif",
-          }}
-        >
+        <div style={CARD_STYLE}>
+          {dart(220, 40, 64)}
           <div
             style={{
               display: "flex",
@@ -126,8 +144,7 @@ export default async function Image({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundImage:
-                  "linear-gradient(135deg, #a78bfa 0%, #8b5cf6 45%, #6d28d9 100%)",
+                backgroundColor: VIOLET,
                 color: "#ffffff",
                 fontSize: 108,
                 fontWeight: 700,
@@ -136,9 +153,7 @@ export default async function Image({
               {initial}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <span
-                style={{ fontSize: 72, fontWeight: 700, color: "#ffffff" }}
-              >
+              <span style={{ fontSize: 72, fontWeight: 700, color: INK }}>
                 Tip {displayName}
               </span>
               <span style={{ fontSize: 34, color: MUTED }}>

@@ -86,18 +86,19 @@ body {
   box-shadow: 0 0 0 rgb(20 18 14 / 0.18);
 }
 
-/* Marketing route-group enter transition (CSS-only; scoped by template) */
+/* Marketing route-group enter transition (CSS-only; scoped by template).
+   OPACITY ONLY — a retained transform here would turn this wrapper into the
+   containing block for position:fixed descendants (the 3D canvas layer),
+   breaking their viewport anchoring. */
 .marketing-enter {
-  animation: marketing-fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: marketing-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-@keyframes marketing-fade-up {
+@keyframes marketing-fade {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
