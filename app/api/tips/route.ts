@@ -5,17 +5,30 @@ import {
   getRaised,
   getCreator,
   rateLimit,
+  consumeTxHash,
 } from "@/lib/store";
 import { normalizeHandle, isValidHandle, type TipNote } from "@/lib/creators";
+import { verifyUsdcTipReceived } from "@/lib/verifyTip";
 
-/** Drop ASCII control characters (incl. newlines) so notes render cleanly. */
-function stripControlChars(input: string): string {
+/**
+ * Clean untrusted display text: NFKC-normalize, drop ASCII controls AND unicode
+ * format/bidi controls (zero-width, RTL-override, isolates, BOM) that would
+ * otherwise slip slurs past the blocklist or garble the wall, collapse runs of
+ * whitespace.
+ */
+function cleanText(input: string): string {
+  const normalized = input.normalize("NFKC");
   let out = "";
-  for (const ch of input) {
+  for (const ch of normalized) {
     const code = ch.codePointAt(0) ?? 0;
-    if (code >= 32 && code !== 127) out += ch;
+    if (code < 32 || code === 127) continue; // C0 + DEL
+    if (code >= 0x200b && code <= 0x200f) continue; // zero-width / directional marks
+    if (code >= 0x202a && code <= 0x202e) continue; // bidi embeddings/overrides
+    if (code >= 0x2066 && code <= 0x2069) continue; // bidi isolates
+    if (code === 0xfeff) continue; // BOM / zero-width no-break space
+    out += ch;
   }
-  return out;
+  return out.replace(/\s+/g, " ");
 }
 
 // Minimal public-wall hygiene — not a moderation system (hackathon scope).
@@ -25,8 +38,20 @@ function containsBlocked(text: string): boolean {
   return BLOCKED.some((w) => lower.includes(w));
 }
 
+/**
+ * Trusted client IP on Vercel: x-vercel-forwarded-for is set by the platform
+ * and cannot be spoofed by the client; fall back to the RIGHTMOST x-forwarded-
+ * for entry (the hop Vercel appended) rather than the client-controlled left.
+ */
 function clientIp(req: NextRequest): string {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const vercel = req.headers.get("x-vercel-forwarded-for");
+  if (vercel) return vercel.split(",")[0]!.trim();
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    const parts = xff.split(",");
+    return parts[parts.length - 1]!.trim();
+  }
+  return req.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
 export async function GET(req: NextRequest) {
@@ -58,7 +83,7 @@ export async function POST(req: NextRequest) {
       handle?: unknown;
       name?: unknown;
       message?: unknown;
-      amountUsd?: unknown;
+      txHash?: unknown;
     } | null;
 
     if (!body || typeof body.handle !== "string") {
@@ -68,15 +93,15 @@ export async function POST(req: NextRequest) {
     if (!isValidHandle(handle)) {
       return NextResponse.json({ error: "Invalid handle." }, { status: 400 });
     }
-    // Rate-limit before any store writes (4 notes/min/IP).
+    // Rate-limit before any store writes / RPC calls (4/min/IP).
     if (!(await rateLimit(`tips:${clientIp(req)}`, 4, 60))) {
       return NextResponse.json(
         { error: "Too many notes — try again in a minute." },
         { status: 429 },
       );
     }
-    // Notes only for creators that exist (blocks unbounded key spam).
-    if (!(await getCreator(handle))) {
+    const creator = await getCreator(handle);
+    if (!creator) {
       return NextResponse.json({ error: "Unknown creator." }, { status: 404 });
     }
     if (body.name !== undefined && typeof body.name !== "string") {
@@ -85,23 +110,40 @@ export async function POST(req: NextRequest) {
     if (body.message !== undefined && typeof body.message !== "string") {
       return NextResponse.json({ error: "Invalid message." }, { status: 400 });
     }
-    if (typeof body.amountUsd !== "number" || !Number.isFinite(body.amountUsd)) {
-      return NextResponse.json({ error: "Invalid amount." }, { status: 400 });
-    }
-    const amountUsd = Math.round(body.amountUsd * 100) / 100;
-    if (amountUsd < 0.5 || amountUsd > 10000) {
+    // A note is only ever created for a REAL, settled tip: the client submits
+    // the Arbitrum tx hash and the server confirms it on-chain. This is what
+    // makes the "raised" total and the wall unforgeable — the amount comes from
+    // the chain, never from the caller.
+    if (typeof body.txHash !== "string") {
       return NextResponse.json(
-        { error: "Amount must be between $0.50 and $10,000." },
+        { error: "A settled tip is required." },
         { status: 400 },
+      );
+    }
+    const amountUsd = await verifyUsdcTipReceived(
+      body.txHash,
+      creator.receivingAddress,
+    );
+    if (amountUsd === null) {
+      return NextResponse.json(
+        { error: "Couldn't verify that tip on-chain." },
+        { status: 400 },
+      );
+    }
+    // Each settlement can be counted exactly once (replay / double-credit guard).
+    if (!(await consumeTxHash(body.txHash))) {
+      return NextResponse.json(
+        { error: "That tip was already recorded." },
+        { status: 409 },
       );
     }
 
     const name =
-      stripControlChars(typeof body.name === "string" ? body.name : "")
+      cleanText(typeof body.name === "string" ? body.name : "")
         .trim()
         .slice(0, 24)
         .trim() || "Someone";
-    const message = stripControlChars(
+    const message = cleanText(
       typeof body.message === "string" ? body.message : "",
     )
       .trim()
@@ -115,7 +157,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const note: TipNote = { name, message, amountUsd, at: Date.now() };
+    const note: TipNote = {
+      name,
+      message,
+      amountUsd: Math.round(amountUsd * 100) / 100,
+      at: Date.now(),
+    };
     await pushTipNote(handle, note);
     return NextResponse.json({ ok: true });
   } catch {

@@ -45,15 +45,45 @@ export async function fetchCreator(handle: string): Promise<Creator | null> {
   return res.json();
 }
 
+/** The creator a login address owns, if any (authoritative identity). */
+export async function fetchCreatorByAddress(
+  address: string,
+): Promise<Creator | null> {
+  const res = await fetch(`/api/creators?address=${encodeURIComponent(address)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Failed to resolve account (${res.status})`);
+  return res.json();
+}
+
+/** The exact message a claimer's wallet signs to prove control of the payout address. */
+export function claimSignaturePayload(
+  handle: string,
+  displayName: string,
+  receivingAddress: string,
+  ts: number,
+): string {
+  return `TipJet claim\nhandle: ${handle}\nname: ${displayName}\naddress: ${receivingAddress}\nts: ${ts}`;
+}
+
 export async function claimHandle(input: {
   handle: string;
   displayName: string;
   receivingAddress: string;
+  /** Signs the claim with the payout wallet (the Magic signer). */
+  signMessage: (message: string) => Promise<string>;
 }): Promise<Creator> {
+  // Normalize/trim EXACTLY as the server will, so the signed payload matches.
+  const handle = normalizeHandle(input.handle);
+  const displayName = input.displayName.trim();
+  const receivingAddress = input.receivingAddress.trim();
+  const ts = Date.now();
+  const signature = await input.signMessage(
+    claimSignaturePayload(handle, displayName, receivingAddress, ts),
+  );
   const res = await fetch("/api/creators", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ handle, displayName, receivingAddress, ts, signature }),
   });
   const body = await res.json().catch(() => ({}));
   if (res.status === 409) throw new Error("That handle is already taken.");

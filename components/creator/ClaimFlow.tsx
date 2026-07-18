@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { loginEmail, isLoggedIn, getAddress } from "@/lib/magic";
+import { loginEmail, isLoggedIn, getAddress, getMagicSigner } from "@/lib/magic";
 import {
   fetchCreator,
   claimHandle,
@@ -96,6 +96,8 @@ export default function ClaimFlow() {
         handle,
         displayName: displayName.trim(),
         receivingAddress,
+        signMessage: async (message) =>
+          (await getMagicSigner()).signMessage(message),
       });
       try {
         localStorage.setItem("tipjet.handle", creator.handle);

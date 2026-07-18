@@ -1,11 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCreator, createCreator, rateLimit } from "@/lib/store";
-import { normalizeHandle, isValidHandle, type Creator } from "@/lib/creators";
+import { verifyMessage } from "ethers";
+import {
+  getCreator,
+  createCreator,
+  rateLimit,
+  getHandleByAddress,
+} from "@/lib/store";
+import {
+  normalizeHandle,
+  isValidHandle,
+  claimSignaturePayload,
+  type Creator,
+} from "@/lib/creators";
 
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
+const MAX_SIGNATURE_AGE_MS = 10 * 60 * 1000;
+
+function clientIp(req: NextRequest): string {
+  const vercel = req.headers.get("x-vercel-forwarded-for");
+  if (vercel) return vercel.split(",")[0]!.trim();
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",").pop()!.trim();
+  return req.headers.get("x-real-ip")?.trim() || "unknown";
+}
 
 export async function GET(req: NextRequest) {
   try {
+    // Resolve the creator a login address owns (reverse index) — the dashboard
+    // trusts this over localStorage.
+    const addr = req.nextUrl.searchParams.get("address");
+    if (addr) {
+      if (!ADDRESS_RE.test(addr)) {
+        return NextResponse.json({ error: "Invalid address." }, { status: 400 });
+      }
+      const ownedHandle = await getHandleByAddress(addr);
+      const creator = ownedHandle ? await getCreator(ownedHandle) : null;
+      if (!creator) {
+        return NextResponse.json({ error: "No handle for that account." }, { status: 404 });
+      }
+      return NextResponse.json(creator);
+    }
+
     const raw = req.nextUrl.searchParams.get("handle");
     if (!raw) {
       return NextResponse.json({ error: "Missing handle." }, { status: 400 });
@@ -34,21 +69,23 @@ export async function POST(req: NextRequest) {
       handle?: unknown;
       displayName?: unknown;
       receivingAddress?: unknown;
+      ts?: unknown;
+      signature?: unknown;
     } | null;
 
     if (
       !body ||
       typeof body.handle !== "string" ||
       typeof body.displayName !== "string" ||
-      typeof body.receivingAddress !== "string"
+      typeof body.receivingAddress !== "string" ||
+      typeof body.ts !== "number" ||
+      typeof body.signature !== "string"
     ) {
       return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
     }
 
-    // Blunt handle-squatting loops (3 registrations/min/IP).
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    if (!(await rateLimit(`claim:${ip}`, 3, 60))) {
+    // Blunt handle-squatting loops (3 registrations/min/IP, trusted IP).
+    if (!(await rateLimit(`claim:${clientIp(req)}`, 3, 60))) {
       return NextResponse.json(
         { error: "Too many attempts — try again in a minute." },
         { status: 429 },
@@ -75,6 +112,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Invalid receiving address." },
         { status: 400 },
+      );
+    }
+    if (Math.abs(Date.now() - body.ts) > MAX_SIGNATURE_AGE_MS) {
+      return NextResponse.json(
+        { error: "That request expired — please try again." },
+        { status: 400 },
+      );
+    }
+    // Prove control of the payout wallet: the claim is signed by
+    // receivingAddress. You can't register a handle that pays out to a wallet
+    // you don't hold (and this enables account recovery later).
+    let recovered: string;
+    try {
+      recovered = verifyMessage(
+        claimSignaturePayload(handle, displayName, receivingAddress, body.ts),
+        body.signature,
+      );
+    } catch {
+      return NextResponse.json({ error: "Invalid signature." }, { status: 403 });
+    }
+    if (recovered.toLowerCase() !== receivingAddress.toLowerCase()) {
+      return NextResponse.json(
+        { error: "Signature doesn't match the payout address." },
+        { status: 403 },
       );
     }
 

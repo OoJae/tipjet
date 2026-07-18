@@ -5,7 +5,6 @@ import type { UniversalAccount } from "@particle-network/universal-account-sdk";
 import type { Creator } from "@/lib/creators";
 import { sendUsdcOnArbitrum } from "@/lib/send";
 import { ARBITRUM_CHAIN_ID, chainName } from "@/lib/tokens";
-import { postTipNote } from "@/lib/tips";
 
 const PRESETS = [1, 5, 10];
 const MIN_TIP = 0.5;
@@ -34,6 +33,8 @@ export default function TipWidget({
     activityUrl: string;
     amountUsd: number;
     fromChains: number[];
+    name: string;
+    message: string;
   }) => void;
   onBalanceRefresh: () => void;
 }) {
@@ -115,8 +116,19 @@ export default function TipWidget({
   }
 
   async function handleConfirm() {
-    if (amount === null) return;
+    if (amount === null || phase === "sending") return; // guard double-submit
     setPhase("sending");
+
+    const name = fanName.trim().slice(0, NAME_MAX);
+    const message = fanMessage.trim().slice(0, MESSAGE_MAX);
+    if (name) {
+      try {
+        window.localStorage.setItem(FAN_NAME_KEY, name);
+      } catch {
+        // storage unavailable — skip remembering
+      }
+    }
+
     try {
       const result = await sendUsdcOnArbitrum(
         ua,
@@ -125,20 +137,9 @@ export default function TipWidget({
       );
       setSentFromChains(result.fromChains);
       setPhase("success");
-
-      // Best-effort supporter-wall note; the tip has already settled.
-      const name = fanName.trim().slice(0, NAME_MAX);
-      const message = fanMessage.trim().slice(0, MESSAGE_MAX);
-      if (name) {
-        try {
-          window.localStorage.setItem(FAN_NAME_KEY, name);
-        } catch {
-          // storage unavailable — skip remembering
-        }
-      }
-      void postTipNote({ handle: creator.handle, name, message, amountUsd: amount });
-
-      onSent({ ...result, amountUsd: amount });
+      // The note is posted by TipPage AFTER on-chain settlement is observed,
+      // with the real tx hash — so the wall/goal can't be forged.
+      onSent({ ...result, amountUsd: amount, name, message });
       onBalanceRefresh();
     } catch (e) {
       const err = e as { code?: number; message?: string };
@@ -149,8 +150,11 @@ export default function TipWidget({
       setErrorMsg(
         outage
           ? "We couldn't move your balance just now — please try again in a few minutes."
-          : "That didn't go through — you haven't been charged. Please try again.",
+          : "We couldn't confirm your tip. Check your balance before trying again.",
       );
+      // Re-sync the balance so a retry can't blindly double-send if the first
+      // attempt actually moved funds before the error surfaced.
+      onBalanceRefresh();
       setPhase("error");
     }
   }

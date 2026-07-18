@@ -27,7 +27,11 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
     }
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const ip =
+      req.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ||
+      req.headers.get("x-real-ip")?.trim() ||
+      "unknown";
     if (!(await rateLimit(`goal:${ip}`, 6, 60))) {
       return NextResponse.json(
         { error: "Too many attempts — try again in a minute." },

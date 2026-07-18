@@ -17,6 +17,8 @@ const NOTES_MAX = 100;
 
 const key = (handle: string) => `creator:${handle}`;
 const notesKey = (handle: string) => `tips:${handle}`;
+const handleByAddrKey = (addr: string) => `handle-by-addr:${addr.toLowerCase()}`;
+const devHandleByAddr: Map<string, string> = new Map();
 
 async function upstash(cmd: unknown[]): Promise<unknown> {
   const res = await fetch(UPSTASH_URL!, {
@@ -101,12 +103,32 @@ export async function createCreator(creator: Creator): Promise<Creator | null> {
     const set = (await upstash(["SET", key(creator.handle), JSON.stringify(creator), "NX"])) as
       | string
       | null;
-    return set === "OK" ? creator : null;
+    if (set !== "OK") return null;
+    // Reverse index so a returning creator resolves their handle from their
+    // login address alone (fresh browser / cleared localStorage). Latest wins.
+    await upstash([
+      "SET",
+      handleByAddrKey(creator.receivingAddress),
+      creator.handle,
+    ]);
+    return creator;
   }
   if (devStore.has(creator.handle)) return null;
   devStore.set(creator.handle, creator);
+  devHandleByAddr.set(creator.receivingAddress.toLowerCase(), creator.handle);
   devPersist();
   return creator;
+}
+
+/** The handle a login address last claimed, if any (reverse index). */
+export async function getHandleByAddress(
+  address: string,
+): Promise<string | null> {
+  assertProductionStore();
+  if (usingUpstash()) {
+    return (await upstash(["GET", handleByAddrKey(address)])) as string | null;
+  }
+  return devHandleByAddr.get(address.toLowerCase()) ?? null;
 }
 
 /**
@@ -123,6 +145,10 @@ export async function updateCreatorGoal(
   const creator = await getCreator(handle);
   if (!creator) return null;
 
+  // A new goal AMOUNT starts a fresh progress count (else "$500 of $200");
+  // re-saving the same amount (e.g. editing the label) preserves progress.
+  const goalAmountChanged = (creator.goalUsd ?? 0) !== goalUsd;
+
   const updated: Creator = { ...creator };
   if (goalUsd === 0) {
     delete updated.goalUsd;
@@ -135,18 +161,38 @@ export async function updateCreatorGoal(
 
   if (usingUpstash()) {
     await upstash(["SET", key(handle), JSON.stringify(updated)]);
+    if (goalAmountChanged) await upstash(["SET", raisedKey(handle), "0"]);
   } else {
     devStore.set(handle, updated);
+    if (goalAmountChanged) devRaised.set(handle, 0);
     devPersist();
   }
   return updated;
 }
 
 const raisedKey = (handle: string) => `raised:${handle}`;
+const txKey = (hash: string) => `tx:${hash.toLowerCase()}`;
 const devRaised: Map<string, number> = new Map();
+const devConsumed: Set<string> = new Set();
 const devRates: Map<string, { count: number; resetAt: number }> = new Map();
 
-/** Running total of note-attested tips (drives the goal bar; no chain scans). */
+/**
+ * Claim a settlement tx hash exactly once (replay / double-credit guard).
+ * Returns true if this is the first time we've seen it, false if already used.
+ */
+export async function consumeTxHash(hash: string): Promise<boolean> {
+  assertProductionStore();
+  if (usingUpstash()) {
+    const set = (await upstash(["SET", txKey(hash), "1", "NX"])) as string | null;
+    return set === "OK";
+  }
+  const k = hash.toLowerCase();
+  if (devConsumed.has(k)) return false;
+  devConsumed.add(k);
+  return true;
+}
+
+/** Running total of on-chain-verified tips (drives the goal bar). */
 export async function getRaised(handle: string): Promise<number> {
   assertProductionStore();
   if (usingUpstash()) {

@@ -9,14 +9,16 @@ export interface TipNote {
 }
 
 /**
- * Post a note alongside a tip. Fire-and-forget friendly: one retry, then
- * every error is swallowed — the tip has already settled by the time this runs.
+ * Post a note for a SETTLED tip. `txHash` is the on-chain Arbitrum settlement
+ * the server re-verifies before it will record the note or credit the goal —
+ * so the amount is never client-asserted. Fire-and-forget: one retry, then
+ * swallow (the money already moved regardless).
  */
 export async function postTipNote(input: {
   handle: string;
   name: string;
   message: string;
-  amountUsd: number;
+  txHash: string;
 }): Promise<void> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {

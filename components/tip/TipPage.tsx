@@ -7,6 +7,7 @@ import { fetchCreator, normalizeHandle, type Creator } from "@/lib/creators";
 import { isLoggedIn, getAddress, logout } from "@/lib/magic";
 import { makeUniversalAccount, getUnifiedBalance } from "@/lib/universalAccount";
 import { watchForSettlement } from "@/lib/settlement";
+import { postTipNote } from "@/lib/tips";
 import PlaneMark from "@/components/brand/PlaneMark";
 import Wordmark from "@/components/brand/Wordmark";
 import LoginButton from "@/components/tip/LoginButton";
@@ -23,6 +24,8 @@ type SentResult = {
   activityUrl: string;
   amountUsd: number;
   fromChains: number[];
+  name: string;
+  message: string;
 };
 
 export default function TipPage({ handle }: { handle: string }) {
@@ -113,14 +116,24 @@ export default function TipPage({ handle }: { handle: string }) {
     setToastVisible(true);
     setArbiscanUrl(undefined);
     fireConfetti();
-    // Upgrade the toast to a verifiable Arbiscan link once the settlement
-    // transfer is observed on Arbitrum.
+    // Once the settlement transfer is observed on Arbitrum: (1) upgrade the
+    // toast to a verifiable Arbiscan link, and (2) post the supporter-wall note
+    // with the REAL tx hash — the server re-verifies it on-chain before the
+    // note counts, so the wall and goal can't be forged.
     if (creator) {
+      const handle = creator.handle;
       watchForSettlement({
         receiver: creator.receivingAddress,
         amountUsdc: result.amountUsd,
-        onSettled: (txHash) =>
-          setArbiscanUrl(`https://arbiscan.io/tx/${txHash}`),
+        onSettled: (txHash) => {
+          setArbiscanUrl(`https://arbiscan.io/tx/${txHash}`);
+          void postTipNote({
+            handle,
+            name: result.name,
+            message: result.message,
+            txHash,
+          });
+        },
       });
     }
   }

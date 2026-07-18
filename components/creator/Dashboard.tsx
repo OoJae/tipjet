@@ -19,6 +19,7 @@ import {
   normalizeHandle,
   isValidHandle,
   fetchCreator,
+  fetchCreatorByAddress,
   setCreatorGoal,
   type TipNote,
 } from "@/lib/creators";
@@ -63,6 +64,7 @@ export default function Dashboard() {
   // Handle / share link
   const [handle, setHandle] = useState<string | null>(null);
   const [handleInput, setHandleInput] = useState("");
+  const [handleError, setHandleError] = useState<string | null>(null);
 
   // Notes from fans
   const [notes, setNotes] = useState<TipNote[]>([]);
@@ -103,6 +105,31 @@ export default function Dashboard() {
       setAddress(eoa);
       setPhase("ready");
       void refreshBalance();
+      // Resolve the handle from the LOGIN ADDRESS (authoritative) rather than
+      // trusting a possibly-stale/foreign localStorage value.
+      void (async () => {
+        try {
+          const owned = await fetchCreatorByAddress(eoa);
+          if (owned) {
+            setHandle(owned.handle);
+            try {
+              localStorage.setItem(HANDLE_KEY, owned.handle);
+            } catch {
+              /* non-fatal */
+            }
+          } else {
+            // This account owns no handle — drop any stale cached one.
+            setHandle(null);
+            try {
+              localStorage.removeItem(HANDLE_KEY);
+            } catch {
+              /* non-fatal */
+            }
+          }
+        } catch {
+          /* offline — keep the optimistic localStorage value from mount */
+        }
+      })();
     },
     [refreshBalance],
   );
@@ -217,12 +244,33 @@ export default function Dashboard() {
     setGoalLabelInput("");
     setGoalSaved(false);
     setGoalError(null);
+    setHandle(null);
+    setHandleInput("");
+    setHandleError(null);
+    try {
+      localStorage.removeItem(HANDLE_KEY);
+    } catch {
+      /* non-fatal */
+    }
     setPhase("login");
   };
 
-  const saveHandle = () => {
+  const saveHandle = async () => {
     const normalized = normalizeHandle(handleInput);
-    if (!isValidHandle(normalized)) return;
+    if (!isValidHandle(normalized) || !address) return;
+    setHandleError(null);
+    // Only accept a handle this account actually owns — otherwise the dashboard
+    // would show a stranger's share link, QR, and notes.
+    try {
+      const c = await fetchCreator(normalized);
+      if (!c || c.receivingAddress.toLowerCase() !== address.toLowerCase()) {
+        setHandleError("That handle isn't linked to this account.");
+        return;
+      }
+    } catch {
+      setHandleError("Couldn't verify that handle — please try again.");
+      return;
+    }
     setHandle(normalized);
     setHandleInput("");
     try {
@@ -271,11 +319,17 @@ export default function Dashboard() {
     }
   };
 
+  const amountExceedsBalance =
+    AMOUNT_RE.test(amount.trim()) &&
+    balance != null &&
+    Number(amount) > balance;
+
   const canWithdraw =
     !sending &&
     ADDRESS_RE.test(dest.trim()) &&
     AMOUNT_RE.test(amount.trim()) &&
-    Number(amount) > 0;
+    Number(amount) > 0 &&
+    !amountExceedsBalance;
 
   const handleWithdraw = async () => {
     const ua = uaRef.current;
@@ -288,7 +342,6 @@ export default function Dashboard() {
       // The pipeline logs are technical ("EIP-7702 authorization…") — map them
       // to friendly copy on screen and keep the raw lines in the console.
       const friendly = (m: string): string => {
-        console.log("[withdraw]", m);
         if (m.startsWith("Building")) return "Getting your money ready…";
         if (m.startsWith("Routing")) return "Finding the fastest route…";
         if (m.includes("authorization")) return "Confirming it's you…";
@@ -305,7 +358,9 @@ export default function Dashboard() {
     } catch (e) {
       const err = e as { code?: number | string; message?: string };
       const message = typeof err?.message === "string" ? err.message : "";
-      if (err?.code === -32653 || message.includes("Insufficient primary token")) {
+      if (message.includes("Insufficient primary token")) {
+        setSendError("Not enough balance for that amount.");
+      } else if (err?.code === -32653) {
         setSendError(OUTAGE_MESSAGE);
       } else {
         setSendError("Something went wrong sending your money — please try again.");
@@ -518,7 +573,7 @@ export default function Dashboard() {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    saveHandle();
+                    void saveHandle();
                   }}
                   className="mt-3 flex gap-2"
                 >
@@ -542,6 +597,11 @@ export default function Dashboard() {
                     Save
                   </button>
                 </form>
+                {handleError && (
+                  <p className="mt-2 text-xs font-semibold text-red-500">
+                    {handleError}
+                  </p>
+                )}
                 <p className="mt-3 text-xs text-muted">
                   No handle yet?{" "}
                   <Link
@@ -632,6 +692,11 @@ export default function Dashboard() {
                     className="min-h-12 w-full bg-transparent px-2 py-3 text-lg font-semibold tabular-nums outline-none placeholder:font-normal placeholder:text-muted/60"
                   />
                 </div>
+                {amountExceedsBalance && (
+                  <p className="text-sm font-semibold text-red-500">
+                    Not enough balance.
+                  </p>
+                )}
                 <button
                   type="submit"
                   disabled={!canWithdraw}
