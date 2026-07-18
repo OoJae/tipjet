@@ -28,18 +28,9 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --brand: #8b5cf6; /* violet-500 reads better on dark */
-    --brand-strong: #7c3aed;
-    --money: #10b981; /* emerald-500 */
-    --card: #141414;
-    --card-border: #262626;
-    --muted: #a3a3a3;
-  }
-}
+/* Light-only by design: the paper world IS the brand. (The former dark-mode
+   token override is intentionally removed — every visitor sees the designed
+   bill-paper identity regardless of system theme.) */
 
 body {
   background: var(--background);

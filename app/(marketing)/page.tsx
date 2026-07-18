@@ -72,7 +72,10 @@ export default function Landing() {
           Skip to content
         </a>
 
-        <header className="absolute inset-x-0 top-0">
+        {/* z-10: #hero is a later positioned sibling — without a z-index the
+            hero's transparent padding hit-tests ABOVE this header and eats
+            every click on the nav buttons. */}
+        <header className="absolute inset-x-0 top-0 z-10">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
             <Wordmark />
             <nav aria-label="Primary" className="flex items-center gap-2 sm:gap-4">
